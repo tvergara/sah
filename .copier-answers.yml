@@ -1,0 +1,13 @@
+# Changes here will be overwritten by Copier
+_commit: v0.0.4
+_src_path: gh:mila-iqia/ResearchTemplate
+examples_to_include:
+- llm_finetuning
+github_user: tvergara
+module_name: sah
+project_description: Superficial Alignment Hypothesis
+project_name: sah
+python_version: '3.12'
+user_email: tomvergara@uc.cl
+user_name: Tomás Vergara Browne
+recorded_setup: true
