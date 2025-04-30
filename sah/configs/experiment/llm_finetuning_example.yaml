@@ -27,11 +27,12 @@ trainer:
   callbacks:
     model_checkpoint:
       verbose: true
-      # every_n_train_steps: 1000 # todo: restarting from a within-epoch checkpoint doesn't seem to work!
+      every_n_train_steps: 1000
+      # save_top_k: -1 # this retains absolutely every checkpoint saved
 
 hydra:
   run:
     # output directory, generated dynamically on each run
-    dir: logs/${name}
+    dir: ${oc.env:SCRATCH}/hydra-runs/${name}
 name: llm_finetuning_example
 ckpt_path: last
