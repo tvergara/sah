@@ -19,8 +19,8 @@ tokenizer_config:
   trust_remote_code: true
 dataset_config:
   _target_: sah.algorithms.llm_finetuning.DatasetConfig
-  dataset_path: wikitext
-  dataset_name: wikitext-2-v1 # Small dataset for this demo. `wikitext-103-v1` is larger.
+  dataset_path: EdinburghNLP/xsum
+  dataset_name: default
   per_device_train_batch_size: 8
   per_device_eval_batch_size: 8
   block_size: 256

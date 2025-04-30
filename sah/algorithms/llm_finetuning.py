@@ -39,6 +39,8 @@ from transformers.tokenization_utils_fast import PreTrainedTokenizerBase
 from sah.utils.env_vars import SCRATCH, SLURM_TMPDIR
 from sah.utils.typing_utils import NestedMapping
 
+from .formatters import XsumFormatter
+
 logger = getLogger(__name__)
 
 
@@ -184,10 +186,12 @@ def tokenize_datasets(
     tokenizer: PreTrainedTokenizerBase,
     config: DatasetConfig,
 ) -> DatasetDict:
-    return raw_datasets.map(
+    formatter = XsumFormatter()
+    formatted_dataset = raw_datasets.map(formatter)
+    return formatted_dataset.map(
         lambda b: tokenizer(b["text"]),
         batched=True,
-        remove_columns=raw_datasets["train"].column_names,
+        remove_columns=formatted_dataset["train"].column_names,
         load_from_cache_file=not config.overwrite_cache,
         desc="Tokenizing the dataset",
     )
