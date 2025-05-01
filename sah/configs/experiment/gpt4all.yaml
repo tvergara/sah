@@ -1,0 +1,16 @@
+# @package _global_
+
+defaults:
+  - override /algorithm: llm_finetuning
+  - override /trainer/callbacks: default
+
+algorithm:
+  dataset_config:
+    dataset_path: nomic-ai/gpt4all-j-prompt-generations
+    dataset_name: default
+    per_device_eval_batch_size: 4
+    per_device_train_batch_size: 4
+    block_size: 256
+
+name: gpt4all
+ckpt_path: last

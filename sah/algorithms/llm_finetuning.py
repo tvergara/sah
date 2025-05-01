@@ -39,7 +39,7 @@ from transformers.tokenization_utils_fast import PreTrainedTokenizerBase
 from sah.utils.env_vars import SCRATCH, SLURM_TMPDIR
 from sah.utils.typing_utils import NestedMapping
 
-from .formatters import XsumFormatter
+from .formatters import get_dataset_formatter
 
 logger = getLogger(__name__)
 
@@ -172,7 +172,8 @@ def prepare_datasets(
     # size, we don't have to re-tokenize the dataset for example.
     raw_datasets = load_raw_datasets(dataset_config)
     tokenizer = load_tokenizer(tokenizer_config)
-    tokenized_datasets = tokenize_datasets(raw_datasets, tokenizer, dataset_config)
+    formatter = get_dataset_formatter(dataset_config.dataset_path)
+    tokenized_datasets = tokenize_datasets(raw_datasets, tokenizer, dataset_config, formatter)
     lm_datasets = group_text_into_blocks(tokenized_datasets, tokenizer, dataset_config)
     return lm_datasets
 
@@ -185,8 +186,8 @@ def tokenize_datasets(
     raw_datasets: DatasetDict,
     tokenizer: PreTrainedTokenizerBase,
     config: DatasetConfig,
+    formatter: Callable,
 ) -> DatasetDict:
-    formatter = XsumFormatter()
     formatted_dataset = raw_datasets.map(formatter)
     return formatted_dataset.map(
         lambda b: tokenizer(b["text"]),

@@ -3,8 +3,10 @@ defaults:
   - logger: null # use trainer/logger=wandb to enable wandb logging.
 _target_: lightning.Trainer
 accelerator: auto
-strategy: auto
-devices: 1
+strategy:
+  _target_: lightning.pytorch.strategies.FSDPStrategy
+  sharding_strategy: "FULL_SHARD"
+devices: auto
 
 deterministic: false
 
@@ -19,3 +21,8 @@ max_epochs: 10
 default_root_dir: ${hydra:runtime.output_dir}
 
 detect_anomaly: false
+
+limit_val_batches: 1
+num_sanity_val_steps: 0
+val_check_interval: 50
+enable_checkpointing: true
