@@ -3,7 +3,7 @@ network_config:
   _target_: sah.algorithms.llm_finetuning.NetworkConfig
   _recursive_: false
   _convert_: object
-  pretrained_model_name_or_path: facebook/opt-350m
+  pretrained_model_name_or_path: HuggingFaceTB/SmolLM2-135M
   # Uncomment to use fp16 for training. Beware of nans!
   # torch_dtype:
   #   _target_: hydra.utils.get_object
