@@ -19,6 +19,8 @@ dataset_config:
   per_device_eval_batch_size: 8
   block_size: 512
   overwrite_cache: false
-  validation_split_percentage: 10
+saving_config:
+  _target_: sah.algorithms.gather_activations.SavingConfig
+  output_dir: ${hydra:runtime.output_dir}
 
 seed: 42

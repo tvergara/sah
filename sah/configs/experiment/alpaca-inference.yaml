@@ -12,6 +12,7 @@ algorithm:
 trainer:
   enable_checkpointing: false
   limit_val_batches: 0
+  max_epochs: 1
   callbacks:
     model_checkpoint: null
 

@@ -90,6 +90,10 @@ class DatasetConfig:
     validation_split_percentage: int = 10
     overwrite_cache: bool = False
 
+@dataclass(frozen=True, unsafe_hash=True)
+class SavingConfig:
+    output_dir: str
+
 def load_raw_datasets(config: DatasetConfig):
     raw_datasets = datasets.load_dataset(config.dataset_path, config.dataset_name)
     assert isinstance(raw_datasets, DatasetDict)
@@ -176,6 +180,7 @@ class ActivationGatherer(LightningModule):
         network_config: NetworkConfig,
         tokenizer_config: TokenizerConfig,
         dataset_config: DatasetConfig,
+        saving_config: SavingConfig,
         seed: int,
     ):
         super().__init__()
@@ -191,6 +196,7 @@ class ActivationGatherer(LightningModule):
         self.network_config = network_config
         self.tokenizer_config = tokenizer_config
         self.dataset_config = dataset_config
+        self.saving_config = saving_config
 
         self.save_hyperparameters(
             dict(
@@ -312,15 +318,19 @@ class ActivationGatherer(LightningModule):
         )
 
     def training_step(self, batch: dict[str, torch.Tensor], batch_idx: int):
-        print(batch)
         with torch.no_grad():
             outputs: CausalLMOutput = self.network(
                 **batch,
                 output_hidden_states=True
             )
-            raise(2)
-            print(outputs)
 
+        for layer_idx, h in enumerate(outputs.hidden_states):
+            tensor = h.cpu()
+            torch.save(
+                tensor,
+                self.saving_config.output_dir + f"/layer{layer_idx}_batch{batch_idx}.pt"
+            )
+            del tensor
 
     def configure_optimizers(self):
         pass
