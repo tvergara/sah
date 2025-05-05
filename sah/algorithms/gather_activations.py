@@ -9,6 +9,7 @@ import dataclasses
 import hashlib
 import itertools
 import os
+import random
 import shutil
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -19,6 +20,7 @@ from typing import Concatenate, ParamSpec
 import datasets
 import datasets.distributed
 import hydra_zen
+import numpy as np
 import torch
 import torch.distributed
 from datasets import Dataset, load_from_disk
@@ -174,8 +176,18 @@ class ActivationGatherer(LightningModule):
         network_config: NetworkConfig,
         tokenizer_config: TokenizerConfig,
         dataset_config: DatasetConfig,
+        seed: int,
     ):
         super().__init__()
+
+        self.seed = seed
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
+
         self.network_config = network_config
         self.tokenizer_config = tokenizer_config
         self.dataset_config = dataset_config
@@ -286,20 +298,29 @@ class ActivationGatherer(LightningModule):
 
     def train_dataloader(self):
         assert self.valid_dataset is not None
+        g = torch.Generator()
+        g.manual_seed(self.seed)
         return DataLoader(
             self.valid_dataset,
+            shuffle=False,
             collate_fn=default_data_collator,
             num_workers=self.dataset_config.preprocessing_num_workers,
             batch_size=self.dataset_config.per_device_eval_batch_size,
+            worker_init_fn=lambda worker_id: torch.manual_seed(self.seed + worker_id),
+            generator=g,
+            pin_memory=True,
         )
 
     def training_step(self, batch: dict[str, torch.Tensor], batch_idx: int):
+        print(batch)
         with torch.no_grad():
             outputs: CausalLMOutput = self.network(
                 **batch,
                 output_hidden_states=True
             )
+            raise(2)
             print(outputs)
+
 
     def configure_optimizers(self):
         pass

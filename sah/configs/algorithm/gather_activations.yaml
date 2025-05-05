@@ -20,3 +20,5 @@ dataset_config:
   block_size: 512
   overwrite_cache: false
   validation_split_percentage: 10
+
+seed: 42
