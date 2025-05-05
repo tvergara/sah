@@ -13,4 +13,4 @@ cd ~/sah
 
 . .venv/bin/activate
 
-python sah/main.py experiment=alpaca
+python sah/main.py experiment=alpaca-inference

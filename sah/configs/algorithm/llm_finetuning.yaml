@@ -3,7 +3,7 @@ network_config:
   _target_: sah.algorithms.llm_finetuning.NetworkConfig
   _recursive_: false
   _convert_: object
-  pretrained_model_name_or_path: HuggingFaceTB/SmolLM2-135M
+  pretrained_model_name_or_path: HuggingFaceTB/SmolLM2-360M
   # Uncomment to use fp16 for training. Beware of nans!
   # torch_dtype:
   #   _target_: hydra.utils.get_object
@@ -21,9 +21,9 @@ dataset_config:
   _target_: sah.algorithms.llm_finetuning.DatasetConfig
   dataset_path: EdinburghNLP/xsum
   dataset_name: default
-  per_device_train_batch_size: 8
+  per_device_train_batch_size: 16
   per_device_eval_batch_size: 8
-  block_size: 256
+  block_size: 512
   overwrite_cache: false
   validation_split_percentage: 10
 learning_rate: 2e-5

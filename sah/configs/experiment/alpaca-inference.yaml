@@ -1,0 +1,19 @@
+# @package _global_
+
+defaults:
+  - override /algorithm: gather_activations
+  - override /trainer/callbacks: default
+
+algorithm:
+  dataset_config:
+    dataset_path: tatsu-lab/alpaca
+    dataset_name: default
+
+trainer:
+  enable_checkpointing: false
+  limit_val_batches: 0
+  callbacks:
+    model_checkpoint: null
+
+name: alpaca
+ckpt_path: last

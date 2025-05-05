@@ -6,8 +6,8 @@ defaults:
 
 algorithm:
   dataset_config:
-    dataset_path: nomic-ai/gpt4all-j-prompt-generations
+    dataset_path: tatsu-lab/alpaca
     dataset_name: default
 
-name: gpt4all
+name: alpaca
 ckpt_path: last

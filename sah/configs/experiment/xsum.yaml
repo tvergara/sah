@@ -8,9 +8,6 @@ algorithm:
   dataset_config:
     dataset_path: EdinburghNLP/xsum
     dataset_name: default
-    per_device_eval_batch_size: 4
-    per_device_train_batch_size: 4
-    block_size: 256
 
 name: xsum
 ckpt_path: last
