@@ -1,0 +1,13 @@
+# @package _global_
+
+defaults:
+  - override /algorithm: llm_finetuning
+  - override /trainer/callbacks: default
+
+algorithm:
+  dataset_config:
+    dataset_path: tatsu-lab/alpaca
+    dataset_name: default
+
+name: alpaca
+ckpt_path: last

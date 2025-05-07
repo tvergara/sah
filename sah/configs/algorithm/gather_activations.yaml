@@ -19,8 +19,11 @@ dataset_config:
   per_device_eval_batch_size: 8
   block_size: 512
   overwrite_cache: false
-saving_config:
-  _target_: sah.algorithms.gather_activations.SavingConfig
-  output_dir: ${hydra:runtime.output_dir}
+general_config:
+  _target_: sah.algorithms.gather_activations.GeneralConfig
+  output_dir: "${hydra:runtime.output_dir}/${..network_config.pretrained_model_name_or_path}/${.revision}"
+  local_checkpoint: false
+  checkpoint_path: null
+  revision: ${..network_config.revision}
 
 seed: 42

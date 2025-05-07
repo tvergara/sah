@@ -35,6 +35,7 @@ from transformers.models.auto.tokenization_auto import AutoTokenizer
 from transformers.tokenization_utils_fast import PreTrainedTokenizerBase
 
 from sah.algorithms.formatters import get_dataset_formatter
+from sah.algorithms.utils import load_weights_from_checkpoint
 from sah.utils.env_vars import SCRATCH, SLURM_TMPDIR
 
 logger = getLogger(__name__)
@@ -91,8 +92,11 @@ class DatasetConfig:
     overwrite_cache: bool = False
 
 @dataclass(frozen=True, unsafe_hash=True)
-class SavingConfig:
+class GeneralConfig:
     output_dir: str
+    local_checkpoint: bool
+    checkpoint_path: str
+    revision: str
 
 def load_raw_datasets(config: DatasetConfig):
     raw_datasets = datasets.load_dataset(config.dataset_path, config.dataset_name)
@@ -180,7 +184,7 @@ class ActivationGatherer(LightningModule):
         network_config: NetworkConfig,
         tokenizer_config: TokenizerConfig,
         dataset_config: DatasetConfig,
-        saving_config: SavingConfig,
+        general_config: GeneralConfig,
         seed: int,
     ):
         super().__init__()
@@ -196,7 +200,7 @@ class ActivationGatherer(LightningModule):
         self.network_config = network_config
         self.tokenizer_config = tokenizer_config
         self.dataset_config = dataset_config
-        self.saving_config = saving_config
+        self.general_config = general_config
 
         self.save_hyperparameters(
             dict(
@@ -297,10 +301,16 @@ class ActivationGatherer(LightningModule):
         # request lots of RAM just to load up the model weights and then not use it.
         if self.network is not None:
             return
+
         logger.info(f"Rank {self.local_rank}: {self.device=}")
         with torch.random.fork_rng(devices=[self.device] if self.device.type == "cuda" else []):
             self.network = hydra_zen.instantiate(self.network_config)
             self.network.eval()
+
+        if self.general_config.local_checkpoint:
+            path =  self.general_config.checkpoint_path + '/' + self.general_config.revision
+            load_weights_from_checkpoint(self.network, path)
+
 
     def train_dataloader(self):
         assert self.valid_dataset is not None
@@ -318,6 +328,8 @@ class ActivationGatherer(LightningModule):
         )
 
     def training_step(self, batch: dict[str, torch.Tensor], batch_idx: int):
+        outdir = Path(self.general_config.output_dir)
+        outdir.mkdir(parents=True, exist_ok=True)
         with torch.no_grad():
             outputs: CausalLMOutput = self.network(
                 **batch,
@@ -328,7 +340,7 @@ class ActivationGatherer(LightningModule):
             tensor = h.cpu()
             torch.save(
                 tensor,
-                self.saving_config.output_dir + f"/layer{layer_idx}_batch{batch_idx}.pt"
+                self.general_config.output_dir + f"/layer{layer_idx}_batch{batch_idx}.pt"
             )
             del tensor
 
