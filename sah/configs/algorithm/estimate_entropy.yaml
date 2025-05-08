@@ -1,0 +1,9 @@
+_target_: sah.algorithms.estimate_entropy.EntropyEstimator
+activations_config:
+  _target_: sah.algorithms.estimate_entropy.ActivationsConfig
+  _recursive_: false
+  _convert_: object
+  activations_path: ${hydra:runtime.output_dir}/HuggingFaceTB/SmolLM2-360M-intermediate-checkpoints
+  input_activations: step-160000
+  output_activations: step-160000
+  layers: [0]
