@@ -4,6 +4,14 @@ activations_config:
   _recursive_: false
   _convert_: object
   activations_path: ${hydra:runtime.output_dir}/HuggingFaceTB/SmolLM2-360M-intermediate-checkpoints
-  input_activations: step-160000
-  output_activations: step-160000
-  layers: [0]
+  input_activations: step-480000
+  output_activations: step-480000
+  layers: [10]
+transformer_config:
+  _target_: sah.algorithms.estimate_entropy.TransformerConfig
+  _recursive_: false
+  _convert_: object
+  embed_dim: 960
+  num_heads: 4
+  hidden_dim: 2000
+  num_layers: 2

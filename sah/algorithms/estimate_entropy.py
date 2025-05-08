@@ -2,9 +2,13 @@ import glob
 import os
 from dataclasses import dataclass
 
+import hydra_zen
 import torch
 from lightning import LightningModule
+from torch import nn
 from torch.utils.data import DataLoader, Dataset
+
+from sah.algorithms.networks.gaussian_transformer import GaussianTransformer
 
 
 @dataclass(frozen=True, unsafe_hash=True)
@@ -14,7 +18,19 @@ class ActivationsConfig:
     output_activations: str
     layers: list[int]
     batch_size: int = 32
+    lr: float = 1e-4
 
+@hydra_zen.hydrated_dataclass(
+    target=GaussianTransformer,
+    frozen=True,
+    unsafe_hash=True,
+    populate_full_signature=True,
+)
+class TransformerConfig:
+    embed_dim: int
+    num_heads: int
+    hidden_dim: int
+    num_layers: int
 
 class ActivationDataset(Dataset):
     def __init__(self, base_path: str, input_dir: str, output_dir: str, layers: list[int]):
@@ -56,9 +72,16 @@ class ActivationDataset(Dataset):
         return self.inputs[idx], self.outputs[idx]
 
 class EntropyEstimator(LightningModule):
-    def __init__(self, activations_config: ActivationsConfig) -> None:
+    def __init__(
+        self,
+        activations_config: ActivationsConfig,
+        transformer_config: TransformerConfig,
+    ) -> None:
         super().__init__()
         self.activations_config = activations_config
+        self.transformer_config = transformer_config
+        self.network: GaussianTransformer | None = None
+        self.loss_fn = nn.GaussianNLLLoss(full=True, eps=1e-6)
 
     def train_dataloader(self):
         ds = ActivationDataset(
@@ -75,8 +98,25 @@ class EntropyEstimator(LightningModule):
             pin_memory=True,
         )
 
-    def training_step(self, batch: dict[str, torch.Tensor], batch_idx: int):
-        pass
+    def configure_model(self) -> None:
+        if self.network is not None:
+            return
+
+        self.network = hydra_zen.instantiate(self.transformer_config)
+
+    def training_step(self, batch: list[torch.Tensor], batch_idx: int):
+        input_acts, output_acts = batch
+        input_acts = input_acts.squeeze(1)
+        output_acts = output_acts.squeeze(1)
+        mu, sigma = self.network(input_acts)
+        var = sigma ** 2
+        loss = self.loss_fn(mu, output_acts, var)
+        self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True)
+
+        return loss
 
     def configure_optimizers(self):
-        pass
+        return torch.optim.Adam(
+            self.network.parameters(),
+            lr=self.activations_config.lr,
+        )
