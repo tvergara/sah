@@ -62,6 +62,8 @@ class GaussianTransformer(nn.Module):
             for _ in range(num_layers)
         ])
         self.mean_head = nn.Linear(embed_dim, embed_dim)
+        nn.init.eye_(self.mean_head.weight)
+        nn.init.zeros_(self.mean_head.bias)
         self.sigma_head = nn.Linear(embed_dim, embed_dim)
         self.softplus = nn.Softplus()
 
