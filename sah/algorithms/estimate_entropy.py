@@ -6,7 +6,7 @@ import hydra_zen
 import torch
 from lightning import LightningModule
 from torch import nn
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader, Dataset, random_split
 
 from sah.algorithms.networks.gaussian_transformer import GaussianTransformer
 
@@ -19,6 +19,7 @@ class ActivationsConfig:
     layers: list[int]
     batch_size: int = 32
     lr: float = 1e-4
+    test_size: float = 0.2
 
 @hydra_zen.hydrated_dataclass(
     target=GaussianTransformer,
@@ -83,17 +84,37 @@ class EntropyEstimator(LightningModule):
         self.network: GaussianTransformer | None = None
         self.loss_fn = nn.GaussianNLLLoss(full=True, eps=1e-6)
 
+    def setup(self, stage: str):
+        if stage == "fit":
+            full_ds = ActivationDataset(
+                base_path=self.activations_config.activations_path,
+                input_dir=self.activations_config.input_activations,
+                output_dir=self.activations_config.output_activations,
+                layers=self.activations_config.layers,
+            )
+            n = len(full_ds)
+            test_n = int(self.activations_config.test_size * n)
+            train_n = n - test_n
+            self.train_ds, self.test_ds = random_split(
+                full_ds,
+                [train_n, test_n],
+                generator=torch.Generator().manual_seed(42),
+            )
+
     def train_dataloader(self):
-        ds = ActivationDataset(
-            base_path=self.activations_config.activations_path,
-            input_dir=self.activations_config.input_activations,
-            output_dir=self.activations_config.output_activations,
-            layers=self.activations_config.layers,
-        )
         return DataLoader(
-            ds,
+            self.train_ds,
             batch_size=self.activations_config.batch_size,
             shuffle=True,
+            num_workers=4,
+            pin_memory=True,
+        )
+
+    def test_dataloader(self):
+        return DataLoader(
+            self.test_ds,
+            batch_size=self.activations_config.batch_size,
+            shuffle=False,
             num_workers=4,
             pin_memory=True,
         )
@@ -114,6 +135,16 @@ class EntropyEstimator(LightningModule):
         self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True)
 
         return loss
+
+    def test_step(self, batch, batch_idx):
+        input_acts, output_acts = batch
+        input_acts = input_acts.squeeze(1)
+        output_acts = output_acts.squeeze(1)
+
+        mu, sigma = self.network(input_acts)
+        var = sigma ** 2
+        loss = self.loss_fn(mu, output_acts, var)
+        self.log("test/loss", loss, on_epoch=True, prog_bar=True)
 
     def configure_optimizers(self):
         return torch.optim.Adam(
