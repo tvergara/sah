@@ -13,28 +13,29 @@ class TransformerBlock(nn.Module):
     """
     def __init__(self, embed_dim: int, num_heads: int, hidden_dim: int, dropout: float = 0.1):
         super().__init__()
-        self.attn = nn.MultiheadAttention(embed_dim, num_heads, dropout=dropout, batch_first=True)
+        self.attn = nn.MultiheadAttention(embed_dim, num_heads, dropout=0.0, batch_first=True)
+        self.attn.out_proj.weight.data.zero_()
+        self.attn.out_proj.bias.data.zero_()
         self.norm1 = nn.LayerNorm(embed_dim)
-        self.ff = nn.Sequential(
-            nn.Linear(embed_dim, hidden_dim),
-            nn.GELU(),
-            nn.Dropout(dropout),
-            nn.Linear(hidden_dim, embed_dim),
-            nn.Dropout(dropout)
-        )
+        self.linear1 = nn.Linear(embed_dim, hidden_dim)
+        self.linear2 = nn.Linear(hidden_dim, embed_dim)
+        self.linear2.weight.data.zero_()
+        self.linear2.bias.data.zero_()
+        self.ff = nn.Sequential(self.linear1, nn.GELU(), self.linear2)
         self.norm2 = nn.LayerNorm(embed_dim)
 
     def forward(self, x: torch.Tensor, key_padding_mask: torch.Tensor = None) -> torch.Tensor:
         batch_size, seq_len, _ = x.size()
         causal_mask = torch.triu(torch.ones(seq_len, seq_len, device=x.device), diagonal=1).bool()
+        normalized_x = self.norm1(x)
         attn_out, _ = self.attn(
-            x, x, x,
+            normalized_x, normalized_x, normalized_x,
             attn_mask=causal_mask,
             key_padding_mask=key_padding_mask,
         )
-        x = self.norm1(x + attn_out)
-        ff_out = self.ff(x)
-        x = self.norm2(x + ff_out)
+        x = x + attn_out
+        ff_out = self.ff(self.norm2(x))
+        x = x + ff_out
         return x
 
 
