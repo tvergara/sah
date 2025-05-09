@@ -4,6 +4,7 @@ import os
 from dataclasses import dataclass
 
 import hydra_zen
+import pandas as pd
 import torch
 from lightning import LightningModule
 from torch import nn
@@ -11,16 +12,6 @@ from torch.utils.data import DataLoader, Dataset, random_split
 
 from sah.algorithms.networks.gaussian_transformer import GaussianTransformer
 
-
-@dataclass(frozen=True, unsafe_hash=True)
-class ActivationsConfig:
-    activations_path: str
-    input_activations: str
-    output_activations: str
-    layers: list[int]
-    batch_size: int = 32
-    lr: float = 1e-4
-    test_size: float = 0.2
 
 @hydra_zen.hydrated_dataclass(
     target=GaussianTransformer,
@@ -33,6 +24,13 @@ class TransformerConfig:
     num_heads: int
     hidden_dim: int
     num_layers: int
+
+@dataclass(frozen=True, unsafe_hash=True)
+class GeneralConfig:
+    result_file: str
+    batch_size: int = 32
+    lr: float = 1e-4
+    test_size: float = 0.2
 
 class ActivationDataset(Dataset):
     def __init__(self, base_path: str, input_dir: str, output_dir: str, layers: list[int]):
@@ -73,28 +71,37 @@ class ActivationDataset(Dataset):
     def __getitem__(self, idx):
         return self.inputs[idx], self.outputs[idx]
 
+@hydra_zen.hydrated_dataclass(
+    target=ActivationDataset,
+    frozen=True,
+    unsafe_hash=True,
+    populate_full_signature=True,
+)
+class ActivationsConfig:
+    base_path: str
+    input_dir: str
+    output_dir: str
+    layers: list[int]
+
 class EntropyEstimator(LightningModule):
     def __init__(
         self,
         activations_config: ActivationsConfig,
         transformer_config: TransformerConfig,
+        general_config: GeneralConfig,
     ) -> None:
         super().__init__()
         self.activations_config = activations_config
         self.transformer_config = transformer_config
+        self.general_config = general_config
         self.network: GaussianTransformer | None = None
         self.loss_fn = nn.GaussianNLLLoss(full=True, eps=1e-6)
 
     def setup(self, stage: str):
         if stage == "fit":
-            full_ds = ActivationDataset(
-                base_path=self.activations_config.activations_path,
-                input_dir=self.activations_config.input_activations,
-                output_dir=self.activations_config.output_activations,
-                layers=self.activations_config.layers,
-            )
+            full_ds = hydra_zen.instantiate(self.activations_config)
             n = len(full_ds)
-            test_n = int(self.activations_config.test_size * n)
+            test_n = int(self.general_config.test_size * n)
             train_n = n - test_n
             self.train_ds, self.test_ds = random_split(
                 full_ds,
@@ -105,7 +112,7 @@ class EntropyEstimator(LightningModule):
     def train_dataloader(self):
         return DataLoader(
             self.train_ds,
-            batch_size=self.activations_config.batch_size,
+            batch_size=self.general_config.batch_size,
             shuffle=True,
             num_workers=4,
             pin_memory=True,
@@ -114,7 +121,7 @@ class EntropyEstimator(LightningModule):
     def test_dataloader(self):
         return DataLoader(
             self.test_ds,
-            batch_size=self.activations_config.batch_size,
+            batch_size=self.general_config.batch_size,
             shuffle=False,
             num_workers=4,
             pin_memory=True,
@@ -147,10 +154,29 @@ class EntropyEstimator(LightningModule):
         ent_per_sample = 0.5 * log_term.sum(dim=[1, 2])
 
         avg_ent = ent_per_sample.mean()
+        self.save_entropy(avg_ent.item())
         self.log("test/loss", avg_ent, on_epoch=True, prog_bar=True)
+
+    def save_entropy(self, entropy):
+        result_path = self.general_config.result_file
+        input_dir = self.activations_config.input_dir
+        output_dir = self.activations_config.output_dir
+        row = {"input": input_dir, "output": output_dir, "entropy": entropy}
+
+        if os.path.exists(result_path):
+            df = pd.read_csv(result_path)
+            mask = (df["input"] == input_dir) & (df["output"] == output_dir)
+            if mask.any():
+                df.loc[mask, "entropy"] = entropy
+            else:
+                df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
+        else:
+            df = pd.DataFrame([row], columns=["input", "output", "entropy"])
+
+        df.to_csv(result_path, index=False)
 
     def configure_optimizers(self):
         return torch.optim.Adam(
             self.network.parameters(),
-            lr=self.activations_config.lr,
+            lr=self.general_config.lr,
         )

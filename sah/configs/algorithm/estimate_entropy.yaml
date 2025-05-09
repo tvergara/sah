@@ -3,10 +3,9 @@ activations_config:
   _target_: sah.algorithms.estimate_entropy.ActivationsConfig
   _recursive_: false
   _convert_: object
-  activations_path: ${hydra:runtime.output_dir}/HuggingFaceTB/SmolLM2-360M-intermediate-checkpoints
-  # input_activations: step_00050
-  input_activations: step_00050
-  output_activations: step-1280000
+  base_path: ${hydra:runtime.output_dir}/HuggingFaceTB/SmolLM2-360M-intermediate-checkpoints
+  input_dir: step-1280000
+  output_dir: step_00050
   layers: [10]
 transformer_config:
   _target_: sah.algorithms.estimate_entropy.TransformerConfig
@@ -16,3 +15,8 @@ transformer_config:
   num_heads: 4
   hidden_dim: 2000
   num_layers: 2
+general_config:
+  _target_: sah.algorithms.estimate_entropy.GeneralConfig
+  _recursive_: false
+  _convert_: object
+  result_file: ${hydra:runtime.output_dir}/entropies.csv
