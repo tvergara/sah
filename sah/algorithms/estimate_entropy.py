@@ -1,4 +1,5 @@
 import glob
+import math
 import os
 from dataclasses import dataclass
 
@@ -142,9 +143,11 @@ class EntropyEstimator(LightningModule):
         output_acts = output_acts.squeeze(1)
 
         mu, sigma = self.network(input_acts)
-        var = sigma ** 2
-        loss = self.loss_fn(mu, output_acts, var)
-        self.log("test/loss", loss, on_epoch=True, prog_bar=True)
+        log_term = torch.log(2 * math.pi * math.e * sigma.pow(2))
+        ent_per_sample = 0.5 * log_term.sum(dim=[1, 2])
+
+        avg_ent = ent_per_sample.mean()
+        self.log("test/loss", avg_ent, on_epoch=True, prog_bar=True)
 
     def configure_optimizers(self):
         return torch.optim.Adam(
