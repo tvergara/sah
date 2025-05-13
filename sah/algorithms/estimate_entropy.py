@@ -33,36 +33,35 @@ class GeneralConfig:
     test_size: float = 0.2
 
 class ActivationDataset(Dataset):
-    def __init__(self, base_path: str, input_dir: str, output_dir: str, layers: list[int]):
+    def __init__(self, base_path: str, input_dir: str | None, output_dir: str, layers: list[int]):
         super().__init__()
         self.layers = sorted(layers)
         inputs_per_layer = []
         outputs_per_layer = []
 
         for L in self.layers:
-            inp_glob = os.path.join(base_path, input_dir,  f"layer{L}_batch*.pt")
             out_glob = os.path.join(base_path, output_dir, f"layer{L}_batch*.pt")
-
-            def sorted_by_batch(pattern):
-                files = glob.glob(pattern)
-
-                def batch_idx(path):
-                    name = os.path.basename(path)
-                    return int(name.split("_")[1].removeprefix("batch").removesuffix(".pt"))
-                return sorted(files, key=batch_idx)
-
-            inp_paths = sorted_by_batch(inp_glob)
-            out_paths = sorted_by_batch(out_glob)
-
-            inp_tensors = [torch.load(p) for p in inp_paths]
+            out_paths = sorted(
+                glob.glob(out_glob),
+                key=lambda p: int(os.path.basename(p).split("_")[1].removeprefix("batch").removesuffix(".pt"))
+            )
             out_tensors = [torch.load(p) for p in out_paths]
+
+            if input_dir is None:
+                inp_tensors = [torch.zeros_like(t) for t in out_tensors]
+            else:
+                inp_glob = os.path.join(base_path, input_dir, f"layer{L}_batch*.pt")
+                inp_paths = sorted(
+                    glob.glob(inp_glob),
+                    key=lambda p: int(os.path.basename(p).split("_")[1].removeprefix("batch").removesuffix(".pt"))
+                )
+                inp_tensors = [torch.load(p) for p in inp_paths]
 
             inputs_per_layer.append(torch.cat(inp_tensors, dim=0))
             outputs_per_layer.append(torch.cat(out_tensors, dim=0))
 
         self.inputs  = torch.stack(inputs_per_layer,  dim=1)
         self.outputs = torch.stack(outputs_per_layer, dim=1)
-
         assert self.inputs.shape == self.outputs.shape
 
     def __len__(self):
@@ -79,9 +78,9 @@ class ActivationDataset(Dataset):
 )
 class ActivationsConfig:
     base_path: str
-    input_dir: str
     output_dir: str
     layers: list[int]
+    input_dir: str | None = None
 
 class EntropyEstimator(LightningModule):
     def __init__(
@@ -95,7 +94,7 @@ class EntropyEstimator(LightningModule):
         self.transformer_config = transformer_config
         self.general_config = general_config
         self.network: GaussianTransformer | None = None
-        self.loss_fn = nn.GaussianNLLLoss(full=True, eps=1e-6)
+        self.loss_fn = nn.GaussianNLLLoss(full=True, eps=1e-5)
 
     def setup(self, stage: str):
         if stage == "fit":
@@ -150,12 +149,18 @@ class EntropyEstimator(LightningModule):
         output_acts = output_acts.squeeze(1)
 
         mu, sigma = self.network(input_acts)
-        log_term = torch.log(2 * math.pi * math.e * sigma.pow(2))
-        ent_per_sample = 0.5 * log_term.sum(dim=[1, 2])
+        eps = 1e-6
+        var = sigma.pow(2).clamp(min=eps)
+        sq_err = (output_acts - mu).pow(2)
+        log_term = torch.log(2 * math.pi * var)
+        nll_per_sample = 0.5 * (sq_err / var + log_term).sum(dim=[1,2])
 
-        avg_ent = ent_per_sample.mean()
-        self.save_entropy(avg_ent.item())
+        avg_ent = nll_per_sample.mean()
         self.log("test/loss", avg_ent, on_epoch=True, prog_bar=True)
+
+    def on_test_epoch_end(self):
+        avg_ent = self.trainer.callback_metrics["test/loss"].item()
+        self.save_entropy(avg_ent)
 
     def save_entropy(self, entropy):
         result_path = self.general_config.result_file
@@ -165,7 +170,10 @@ class EntropyEstimator(LightningModule):
 
         if os.path.exists(result_path):
             df = pd.read_csv(result_path)
-            mask = (df["input"] == input_dir) & (df["output"] == output_dir)
+            if input_dir is None:
+                mask = (df["input"].isna()) & (df["output"] == output_dir)
+            else:
+                mask = (df["input"] == input_dir) & (df["output"] == output_dir)
             if mask.any():
                 df.loc[mask, "entropy"] = entropy
             else:

@@ -66,7 +66,7 @@ class GaussianTransformer(nn.Module):
         nn.init.eye_(self.mean_head.weight)
         nn.init.zeros_(self.mean_head.bias)
         self.sigma_head = nn.Linear(embed_dim, embed_dim)
-        self.softplus = nn.Softplus()
+        self.sigmoid = nn.Sigmoid()
 
     def forward(
         self,
@@ -88,5 +88,5 @@ class GaussianTransformer(nn.Module):
 
         mu = self.mean_head(x)
         raw_sigma = self.sigma_head(x)
-        sigma = self.softplus(raw_sigma)
+        sigma = self.sigmoid(raw_sigma)
         return mu, sigma
