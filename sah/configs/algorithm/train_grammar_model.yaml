@@ -1,0 +1,4 @@
+_target_: sah.algorithms.train_grammar_model.GrammarTrainer
+grammar_config:
+  _target_: sah.algorithms.train_grammar_model.GrammarConfig
+  base_path: /network/scratch/b/brownet/synthetic-data/grammar
