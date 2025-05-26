@@ -9,6 +9,8 @@ from torch import nn
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset
 
+from sah.algorithms.networks.transformer import Transformer
+
 
 class TinyTokenizer:
     def __init__(self, counter: Counter):
@@ -77,6 +79,7 @@ class GrammarTrainer(LightningModule):
         self.embedding  = nn.Embedding(
             self.tokenizer.vocab_size, emb_dim, padding_idx=self.tokenizer.pad_id
         )
+        self.transformer = Transformer(self.tokenizer.vocab_size)
 
     def training_step(self, batch, batch_idx):
         x, _ = batch                 # x : (B, L)
