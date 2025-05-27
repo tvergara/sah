@@ -5,6 +5,9 @@ grammar_config:
 tokenizer_config:
   _target_: sah.algorithms.utils.TokenizerConfig
   out_path: /network/scratch/b/brownet/synthetic-data/grammar/tokenizer.pkl
-checkpoint_config:
-  _target_: sah.algorithms.gather_activations_grammar.CheckpointConfig
-  path: /network/scratch/b/brownet/hydra-runs/grammar/checkpoints/epoch_000_step_02600
+general_config:
+  _target_: sah.algorithms.gather_activations_grammar.GeneralConfig
+  checkpoint_dir: /network/scratch/b/brownet/hydra-runs/grammar/checkpoints/
+  revision: epoch_000_step_02600
+  checkpoint_path: "${.checkpoint_dir}/${.revision}"
+  output_dir: "/network/scratch/b/brownet/synthetic-data/activations/subgrammar/${.revision}"
