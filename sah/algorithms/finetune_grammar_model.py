@@ -1,3 +1,4 @@
+
 import pickle
 
 import hydra_zen
@@ -10,7 +11,7 @@ from sah.algorithms.networks.transformer import Transformer
 from sah.algorithms.utils import GrammarConfig, TokenizerConfig, collate
 
 
-class GrammarTrainer(LightningModule):
+class GrammarFinetuner(LightningModule):
     def __init__(
         self,
         grammar_config: GrammarConfig,
@@ -22,15 +23,13 @@ class GrammarTrainer(LightningModule):
         super().__init__()
         self.save_hyperparameters()
         self.grammar_config = grammar_config
-        self.tokenizer_config = tokenizer_config
-        self.dataset = hydra_zen.instantiate(self.grammar_config)
-        self.test_dataset = hydra_zen.instantiate(self.grammar_config, mode='test')
-        self.pad  = self.dataset.pad_id
-        self.tokenizer = self.dataset.tokenizer
-        self.transformer = Transformer(self.tokenizer.vocab_size)
-        with open(tokenizer_config.out_path, "wb") as f:
-            pickle.dump(self.tokenizer, f)
+        with open(tokenizer_config.out_path, "rb") as f:
+            self.tokenizer = pickle.load(f)
 
+        self.dataset = hydra_zen.instantiate(self.grammar_config, tokenizer=self.tokenizer)
+        self.test_dataset = hydra_zen.instantiate(self.grammar_config, mode='test', tokenizer=self.tokenizer)
+        self.pad  = self.dataset.pad_id
+        self.transformer = Transformer(self.tokenizer.vocab_size)
 
     def training_step(self, batch, batch_idx):
         x, _ = batch                 # x : (B, L)

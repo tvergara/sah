@@ -1,0 +1,7 @@
+_target_: sah.algorithms.finetune_grammar_model.GrammarFinetuner
+grammar_config:
+  _target_: sah.algorithms.utils.GrammarConfig
+  base_path: /network/scratch/b/brownet/synthetic-data/subgrammar
+tokenizer_config:
+  _target_: sah.algorithms.utils.TokenizerConfig
+  out_path: /network/scratch/b/brownet/synthetic-data/grammar/tokenizer.pkl
