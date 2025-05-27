@@ -9,7 +9,7 @@ defaults:
 model_checkpoint:
   verbose: True
   dirpath: "${hydra:runtime.output_dir}/checkpoints"
-  filename: "epoch_{epoch:03d}_step_{step:05d}"
+  filename: "step_{step:05d}"
   auto_insert_metric_name: False
 
 

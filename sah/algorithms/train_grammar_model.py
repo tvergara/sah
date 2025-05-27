@@ -6,7 +6,6 @@ import hydra_zen
 import torch
 import torch.nn.functional as F
 from lightning import LightningModule
-from torch import nn
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset
 
@@ -69,9 +68,6 @@ class GrammarTrainer(LightningModule):
     ):
         super().__init__()
         self.save_hyperparameters()
-        self.encoder   = nn.GRU(emb_dim, hidden_dim, batch_first=True)
-        self.classifier = nn.Linear(hidden_dim, vocab_size)
-        self.criterion = nn.CrossEntropyLoss()
         self.grammar_config = grammar_config
         self.dataset = hydra_zen.instantiate(self.grammar_config)
         self.test_dataset = hydra_zen.instantiate(self.grammar_config, mode='test')
