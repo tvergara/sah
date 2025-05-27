@@ -65,14 +65,20 @@ class GrammarActivationCollector(LightningModule):
         self.out_dir.mkdir(parents=True, exist_ok=True)
 
     def training_step(self, batch, batch_idx, dataloader_idx: int = 0):
-        x, _ = batch                           # (B, L)
+        x, _ = batch                                           # (B, L)
+        valid_mask = (x != self.pad_id).to(torch.bool).cpu()   # (B, L)
 
         with torch.inference_mode():
             _ = self.transformer(x.to(self.device))
 
         for layer_idx, tensor in self._acts.items():
-            path = self.out_dir / f"layer{layer_idx}_batch{batch_idx}.pt"
-            torch.save(tensor, path)
+            torch.save(
+                {
+                    "activations": tensor,   # (B, L, d_model)
+                    "mask": valid_mask,      # (B, L)  → True = real token
+                },
+                self.out_dir / f"layer{layer_idx}_batch{batch_idx}.pt",
+            )
 
         self._acts.clear()
         return None
