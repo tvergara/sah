@@ -4,6 +4,7 @@ from pathlib import Path
 
 import hydra_zen
 import torch
+import torch.nn.functional as F
 from lightning import LightningModule
 from torch import nn
 from torch.nn.utils.rnn import pad_sequence
@@ -68,7 +69,6 @@ class GrammarTrainer(LightningModule):
     ):
         super().__init__()
         self.save_hyperparameters()
-        self.embedding = nn.Embedding(vocab_size, emb_dim)
         self.encoder   = nn.GRU(emb_dim, hidden_dim, batch_first=True)
         self.classifier = nn.Linear(hidden_dim, vocab_size)
         self.criterion = nn.CrossEntropyLoss()
@@ -76,19 +76,20 @@ class GrammarTrainer(LightningModule):
         self.dataset = hydra_zen.instantiate(self.grammar_config)
         self.pad  = self.dataset.pad_id
         self.tokenizer = self.dataset.tokenizer
-        self.embedding  = nn.Embedding(
-            self.tokenizer.vocab_size, emb_dim, padding_idx=self.tokenizer.pad_id
-        )
         self.transformer = Transformer(self.tokenizer.vocab_size)
 
     def training_step(self, batch, batch_idx):
         x, _ = batch                 # x : (B, L)
-        inp  = x[:, :-1]             # drop last token
-        targ = x[:, 1:]              # predict this
-        print(targ)
+        inputs  = x[:, :-1]             # drop last token
+        targets = x[:, 1:]              # predict this
 
-        emb = self.embedding(inp)
-        loss = emb.sum()
+        logits = self.transformer(inputs)
+        loss = F.cross_entropy(
+            logits.view(-1, self.tokenizer.vocab_size),
+            targets.reshape(-1),
+            reduction='mean',
+            ignore_index=self.pad
+        )
 
         self.log("train_loss", loss, prog_bar=True)
         return loss
