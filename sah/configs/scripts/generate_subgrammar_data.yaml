@@ -1,0 +1,13 @@
+initial_grammar:
+  path: /network/scratch/b/brownet/synthetic-data/grammar
+
+trim:
+  keep_prob: 0.6
+  seed: 42
+
+dataset:
+  n: 100_000
+  max_depth: 15
+  test_split: 0.15
+  seed: 42
+  out_dir: /network/scratch/b/brownet/synthetic-data/subgrammar
