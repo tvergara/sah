@@ -1,5 +1,6 @@
 
 import pickle
+from dataclasses import dataclass
 
 import hydra_zen
 import torch
@@ -8,14 +9,24 @@ from lightning import LightningModule
 from torch.utils.data import DataLoader
 
 from sah.algorithms.networks.transformer import Transformer
-from sah.algorithms.utils import GrammarConfig, TokenizerConfig, collate
+from sah.algorithms.utils import (
+    GrammarConfig,
+    TokenizerConfig,
+    collate,
+    load_weights_from_checkpoint,
+)
 
+
+@dataclass(frozen=True, unsafe_hash=True)
+class CheckpointConfig:
+    path: str
 
 class GrammarFinetuner(LightningModule):
     def __init__(
         self,
         grammar_config: GrammarConfig,
         tokenizer_config: TokenizerConfig,
+        checkpoint_config: CheckpointConfig,
         vocab_size: int = 50,
         emb_dim: int = 32,
         hidden_dim: int = 64
@@ -30,6 +41,7 @@ class GrammarFinetuner(LightningModule):
         self.test_dataset = hydra_zen.instantiate(self.grammar_config, mode='test', tokenizer=self.tokenizer)
         self.pad  = self.dataset.pad_id
         self.transformer = Transformer(self.tokenizer.vocab_size)
+        load_weights_from_checkpoint(self.transformer, checkpoint_config.path, model_name='transformer')
 
     def training_step(self, batch, batch_idx):
         x, _ = batch                 # x : (B, L)

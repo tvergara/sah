@@ -5,3 +5,6 @@ grammar_config:
 tokenizer_config:
   _target_: sah.algorithms.utils.TokenizerConfig
   out_path: /network/scratch/b/brownet/synthetic-data/grammar/tokenizer.pkl
+checkpoint_config:
+  _target_: sah.algorithms.finetune_grammar_model.CheckpointConfig
+  path: /network/scratch/b/brownet/hydra-runs/grammar/checkpoints/epoch_000_step_02600

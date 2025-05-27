@@ -9,13 +9,13 @@ from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import Dataset
 
 
-def load_weights_from_checkpoint(model, path):
+def load_weights_from_checkpoint(model, path, model_name='network'):
     ckpt = torch.load(path + '.ckpt', map_location=lambda storage, loc: storage)
     state_dict = ckpt["state_dict"]
 
     new_state_dict = OrderedDict()
     for k, v in state_dict.items():
-        name = k.replace("network.", "")
+        name = k.replace(f"{model_name}.", "")
         new_state_dict[name] = v
 
     model.load_state_dict(new_state_dict)
@@ -63,7 +63,6 @@ def collate(batch, pad_id):
 
 @hydra_zen.hydrated_dataclass(
     target=GrammarDataset,
-    # frozen=True,
     unsafe_hash=True,
     populate_full_signature=True,
 )
