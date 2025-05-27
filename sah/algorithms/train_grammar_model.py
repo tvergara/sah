@@ -27,8 +27,8 @@ class TinyTokenizer:
     def __len__(self): return len(self.itos)
 
 class GrammarDataset(Dataset):
-    def __init__(self, base_path: str, max_length: int = 512):
-        fp = Path(base_path) / "train.txt"
+    def __init__(self, base_path: str, max_length: int = 512, mode='train'):
+        fp = Path(base_path) / f"{mode}.txt"
         if not fp.exists():
             raise FileNotFoundError(fp)
 
@@ -74,6 +74,7 @@ class GrammarTrainer(LightningModule):
         self.criterion = nn.CrossEntropyLoss()
         self.grammar_config = grammar_config
         self.dataset = hydra_zen.instantiate(self.grammar_config)
+        self.test_dataset = hydra_zen.instantiate(self.grammar_config, mode='test')
         self.pad  = self.dataset.pad_id
         self.tokenizer = self.dataset.tokenizer
         self.transformer = Transformer(self.tokenizer.vocab_size)
@@ -95,19 +96,37 @@ class GrammarTrainer(LightningModule):
         return loss
 
     def test_step(self, batch, batch_idx):
-        x, _ = batch                 # x : (B, L)
-        inp  = x[:, :-1]             # drop last token
-        targ = x[:, 1:]              # predict this
-        print(targ)
-        emb = self.embedding(inp)
-        loss = emb.sum()
+        x, _ = batch                 # (B, L)
+        inp, targ = x[:, :-1], x[:, 1:]
+        logits = self.transformer(inp)  # (B, L-1, V)
 
-        self.log("train_loss", loss, prog_bar=True)
-        return loss
+        loss = F.cross_entropy(
+            logits.view(-1, self.tokenizer.vocab_size),
+            targ.reshape(-1),
+            reduction='sum',
+            ignore_index=self.pad,
+        )
+
+        n_tokens = (targ != self.pad).sum()
+
+        ce = loss / n_tokens
+        self.log("test/loss", ce, on_epoch=True, prog_bar=True)
+
+        self.log("perplexity", torch.exp(ce),
+                 prog_bar=True, sync_dist=True)
+
+        preds = logits.argmax(-1)
+        correct = ((preds == targ) & (targ != self.pad)).sum()
+        acc = correct.float() / n_tokens
+        self.log("accuracy", acc, prog_bar=True, sync_dist=True)
 
     def configure_optimizers(self):
         return torch.optim.AdamW(self.parameters(), lr=1e-3)
 
     def train_dataloader(self):
         return DataLoader(self.dataset, batch_size=32,
+                          collate_fn=lambda b: collate(b, self.pad))
+
+    def test_dataloader(self):
+        return DataLoader(self.test_dataset, batch_size=32,
                           collate_fn=lambda b: collate(b, self.pad))
