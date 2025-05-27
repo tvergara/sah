@@ -1,0 +1,15 @@
+grammar:
+  n_nonterms: 10
+  n_terms: 10
+  n_prods_per_nonterm: 3
+  avg_branch: 4
+  p_recursive: 0.6
+  seed: 42
+  min_len: 5
+
+dataset:
+  n: 100_000
+  max_depth: 15
+  test_split: 0.15
+  seed: 42
+  save_dir: /network/scratch/b/brownet/synthetic-data/grammar
