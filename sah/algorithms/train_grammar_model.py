@@ -1,5 +1,7 @@
 import itertools
+import pickle
 from collections import Counter
+from dataclasses import dataclass
 from pathlib import Path
 
 import hydra_zen
@@ -58,10 +60,15 @@ class GrammarConfig:
     base_path: str
     max_length: int = 512
 
+@dataclass(frozen=True, unsafe_hash=True)
+class TokenizerConfig:
+    out_path: str
+
 class GrammarTrainer(LightningModule):
     def __init__(
         self,
         grammar_config: GrammarConfig,
+        tokenizer_config: TokenizerConfig,
         vocab_size: int = 50,
         emb_dim: int = 32,
         hidden_dim: int = 64
@@ -69,11 +76,15 @@ class GrammarTrainer(LightningModule):
         super().__init__()
         self.save_hyperparameters()
         self.grammar_config = grammar_config
+        self.tokenizer_config = tokenizer_config
         self.dataset = hydra_zen.instantiate(self.grammar_config)
         self.test_dataset = hydra_zen.instantiate(self.grammar_config, mode='test')
         self.pad  = self.dataset.pad_id
         self.tokenizer = self.dataset.tokenizer
         self.transformer = Transformer(self.tokenizer.vocab_size)
+        with open(tokenizer_config.out_path, "wb") as f:
+            pickle.dump(self.tokenizer, f)
+
 
     def training_step(self, batch, batch_idx):
         x, _ = batch                 # x : (B, L)
