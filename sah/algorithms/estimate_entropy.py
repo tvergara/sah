@@ -33,7 +33,14 @@ class GeneralConfig:
     test_size: float = 0.2
 
 class ActivationDataset(Dataset):
-    def __init__(self, base_path: str, input_dir: str | None, output_dir: str, layers: list[int]):
+    def __init__(
+        self,
+        base_path: str,
+        input_dir: str | None,
+        output_dir: str,
+        layers: list[int],
+        mask_included: bool,
+    ):
         super().__init__()
         self.layers = sorted(layers)
         inputs_per_layer = []
@@ -44,8 +51,20 @@ class ActivationDataset(Dataset):
             out_paths = sorted(
                 glob.glob(out_glob),
                 key=lambda p: int(os.path.basename(p).split("_")[1].removeprefix("batch").removesuffix(".pt"))
-            )
-            out_tensors = [torch.load(p) for p in out_paths]
+            )[:100]
+            if mask_included:
+                out_tensors = []
+                masks = []
+                for path in out_paths:
+                    values = torch.load(path)
+                    activations = values['activations']
+                    mask = values['mask']
+
+                    if activations.shape[1] == 512:
+                        out_tensors.append(activations)
+                        masks.append(mask)
+            else:
+                out_tensors = [torch.load(p) for p in out_paths]
 
             if input_dir is None:
                 inp_tensors = [torch.zeros_like(t) for t in out_tensors]
@@ -81,6 +100,7 @@ class ActivationsConfig:
     output_dir: str
     layers: list[int]
     input_dir: str | None = None
+    mask_included: bool = False
 
 class EntropyEstimator(LightningModule):
     def __init__(
