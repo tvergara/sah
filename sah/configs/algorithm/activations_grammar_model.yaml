@@ -8,6 +8,12 @@ tokenizer_config:
 general_config:
   _target_: sah.algorithms.gather_activations_grammar.GeneralConfig
   checkpoint_dir: /network/scratch/b/brownet/hydra-runs/grammar/checkpoints/
-  revision: epoch_000_step_02600
+  revision: pretraining_step_02600
   checkpoint_path: "${.checkpoint_dir}/${.revision}"
   output_dir: "/network/scratch/b/brownet/synthetic-data/activations/subgrammar/${.revision}"
+transformer_config:
+  _target_: sah.algorithms.networks.transformer.TransformerConfig
+  d_model: 50
+  dim_feedforward: 200
+  n_heads: 5
+  n_layers: 5
