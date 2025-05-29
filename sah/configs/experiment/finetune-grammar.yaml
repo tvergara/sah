@@ -11,7 +11,10 @@ trainer:
   max_epochs: 1
   callbacks:
     model_checkpoint:
-      every_n_train_steps: 100
+      every_n_train_steps: 10
+      filename: "finetuning_step_{step:05d}"
+      save_top_k: -1
+      save_last: False
 
 name: finetune-grammar
 ckpt_path: last

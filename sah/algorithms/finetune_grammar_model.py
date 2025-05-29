@@ -8,7 +8,7 @@ import torch.nn.functional as F
 from lightning import LightningModule
 from torch.utils.data import DataLoader
 
-from sah.algorithms.networks.transformer import Transformer
+from sah.algorithms.networks.transformer import TransformerConfig
 from sah.algorithms.utils import (
     GrammarConfig,
     TokenizerConfig,
@@ -27,6 +27,7 @@ class GrammarFinetuner(LightningModule):
         grammar_config: GrammarConfig,
         tokenizer_config: TokenizerConfig,
         checkpoint_config: CheckpointConfig,
+        transformer_config: TransformerConfig,
         vocab_size: int = 50,
         emb_dim: int = 32,
         hidden_dim: int = 64
@@ -40,7 +41,10 @@ class GrammarFinetuner(LightningModule):
         self.dataset = hydra_zen.instantiate(self.grammar_config, tokenizer=self.tokenizer)
         self.test_dataset = hydra_zen.instantiate(self.grammar_config, mode='test', tokenizer=self.tokenizer)
         self.pad  = self.dataset.pad_id
-        self.transformer = Transformer(self.tokenizer.vocab_size)
+        self.transformer = hydra_zen.instantiate(
+            transformer_config,
+            vocab_size = self.tokenizer.vocab_size,
+        )
         load_weights_from_checkpoint(self.transformer, checkpoint_config.path, model_name='transformer')
 
     def training_step(self, batch, batch_idx):
@@ -60,27 +64,23 @@ class GrammarFinetuner(LightningModule):
         return loss
 
     def test_step(self, batch, batch_idx):
-        x, _ = batch                 # (B, L)
-        inp, targ = x[:, :-1], x[:, 1:]
-        logits = self.transformer(inp)  # (B, L-1, V)
+        x, mask = batch                 # (B, L)
+        inputs  = x[:, :-1]
+        targets = x[:, 1:]
+        logits = self.transformer(inputs)  # (B, L-1, V)
 
         loss = F.cross_entropy(
             logits.view(-1, self.tokenizer.vocab_size),
-            targ.reshape(-1),
-            reduction='sum',
+            targets.reshape(-1),
+            reduction='mean',
             ignore_index=self.pad,
         )
 
-        n_tokens = (targ != self.pad).sum()
-
-        ce = loss / n_tokens
-        self.log("test/loss", ce, on_epoch=True, prog_bar=True)
-
-        self.log("perplexity", torch.exp(ce),
-                 prog_bar=True, sync_dist=True)
+        self.log("test/loss", loss, prog_bar=True)
 
         preds = logits.argmax(-1)
-        correct = ((preds == targ) & (targ != self.pad)).sum()
+        correct = ((preds == targets) & (targets != self.pad)).sum()
+        n_tokens = (targets != self.pad).sum()
         acc = correct.float() / n_tokens
         self.log("accuracy", acc, prog_bar=True, sync_dist=True)
 
@@ -88,9 +88,7 @@ class GrammarFinetuner(LightningModule):
         return torch.optim.AdamW(self.parameters(), lr=1e-3)
 
     def train_dataloader(self):
-        return DataLoader(self.dataset, batch_size=32,
-                          collate_fn=lambda b: collate(b, self.pad))
+        return DataLoader(self.dataset, batch_size=32, collate_fn=collate)
 
     def test_dataloader(self):
-        return DataLoader(self.test_dataset, batch_size=32,
-                          collate_fn=lambda b: collate(b, self.pad))
+        return DataLoader(self.test_dataset, batch_size=32, collate_fn=collate)
