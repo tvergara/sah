@@ -5,7 +5,6 @@ from pathlib import Path
 
 import hydra_zen
 import torch
-from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import Dataset
 
 
@@ -21,15 +20,28 @@ def load_weights_from_checkpoint(model, path, model_name='network'):
     model.load_state_dict(new_state_dict)
 
 class TinyTokenizer:
-    def __init__(self, counter: Counter):
+    def __init__(self, counter: Counter, max_length=512):
         specials  = ["<PAD>", "<UNK>"]
         self.itos = specials + [tok for tok, c in counter.items() if c >= 1]
         self.stoi = {tok: i for i, tok in enumerate(self.itos)}
         self.pad_id = self.stoi["<PAD>"]
+        self.unk_id = self.stoi["<UNK>"]
         self.vocab_size = len(self.itos)
+        self.max_length = max_length
 
-    def encode(self, tokens):           # list[str] -> list[int]
-        return [self.stoi.get(t, self.stoi["<UNK>"]) for t in tokens]
+    def encode(self, tokens: list[str]) -> tuple[torch.Tensor, torch.Tensor]:
+        ids = [self.stoi.get(t, self.unk_id) for t in tokens][:self.max_length]
+
+        pad_needed = self.max_length - len(ids)
+        if pad_needed:
+            ids.extend([self.pad_id] * pad_needed)
+
+        ids_tensor = torch.tensor(ids, dtype=torch.long)
+
+        mask = torch.ones(self.max_length, dtype=torch.bool)
+        if pad_needed:
+            mask[-pad_needed:] = 0
+        return ids_tensor, mask
 
     def __len__(self): return len(self.itos)
 
@@ -42,24 +54,23 @@ class GrammarDataset(Dataset):
         raw_sents   = [ln.strip().split()[:max_length] for ln in fp.read_text().splitlines()]
 
         if not tokenizer:
-            vocab_ctr   = Counter(itertools.chain.from_iterable(raw_sents))
-            self.tokenizer    = TinyTokenizer(vocab_ctr)
+            vocab_ctr = Counter(itertools.chain.from_iterable(raw_sents))
+            self.tokenizer = TinyTokenizer(vocab_ctr, max_length=max_length)
         else:
             self.tokenizer = tokenizer
 
         self.pad_id = self.tokenizer.pad_id
-        self.seqs   = [torch.tensor(self.tokenizer.encode(s)) for s in raw_sents]
+        self.data = [self.tokenizer.encode(s) for s in raw_sents]
 
     def __len__(self):
-        return len(self.seqs)
+        return len(self.data)
 
     def __getitem__(self, i):
-        return self.seqs[i]
+        return self.data[i]
 
-def collate(batch, pad_id):
-    xs = pad_sequence(batch, batch_first=True, padding_value=pad_id)
-    mask = (xs != pad_id)
-    return xs, mask
+def collate(batch):
+    xs, masks = zip(*batch)
+    return torch.stack(xs, 0), torch.stack(masks, 0)
 
 @hydra_zen.hydrated_dataclass(
     target=GrammarDataset,
