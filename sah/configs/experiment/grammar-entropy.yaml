@@ -1,7 +1,7 @@
 # @package _global_
 
 defaults:
-  - override /algorithm: estimate_entropy
+  - override /algorithm: estimate_grammar_entropy
   - override /trainer/callbacks: default
 
 trainer:
@@ -12,14 +12,4 @@ trainer:
   callbacks:
     model_checkpoint: null
 
-algorithm:
-  general_config:
-    result_file: ${hydra:runtime.output_dir}/grammar-entropies.csv
-  activations_config:
-    mask_included: true
-    base_path: /network/scratch/b/brownet/synthetic-data/activations/subgrammar
-    layers: [3]
-    output_dir: step_01100
-
 name: grammar-entropy
-ckpt_path: last

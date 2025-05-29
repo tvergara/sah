@@ -1,0 +1,15 @@
+_target_: sah.algorithms.estimate_grammar_entropy.GrammarEntropyEstimator
+activations_config:
+  _target_: sah.algorithms.estimate_grammar_entropy.ActivationsConfig
+  _recursive_: false
+  _convert_: object
+  base_path: /network/scratch/b/brownet/synthetic-data/activations/subgrammar
+  layer: 3
+  first_input: pretraining_step_00100
+general_config:
+  _target_: sah.algorithms.estimate_grammar_entropy.GeneralConfig
+  _recursive_: false
+  _convert_: object
+tokenizer_config:
+  _target_: sah.algorithms.utils.TokenizerConfig
+  out_path: /network/scratch/b/brownet/synthetic-data/grammar/tokenizer.pkl
