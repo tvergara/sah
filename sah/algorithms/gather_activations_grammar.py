@@ -77,7 +77,7 @@ class GrammarActivationCollector(LightningModule):
         for i, t in self._acts.items():
             torch.save({"activations": t}, self.out_dir / f"layer{i}_batch{batch_idx}.pt")
 
-        p = self.out_dir / f"tokens_batch{batch_idx}.pt"
+        p = self.out_dir / f"../tokens/tokens_batch{batch_idx}.pt"
         payload = {"input": x.cpu(), "mask": valid_mask.cpu()}
         if p.exists():
             old = torch.load(p)
