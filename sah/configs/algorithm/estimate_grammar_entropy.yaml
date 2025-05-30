@@ -11,6 +11,7 @@ general_config:
   _target_: sah.algorithms.estimate_grammar_entropy.GeneralConfig
   _recursive_: false
   _convert_: object
+  result_file: ${hydra:runtime.output_dir}/grammar-entropies.csv
 tokenizer_config:
   _target_: sah.algorithms.utils.TokenizerConfig
   out_path: /network/scratch/b/brownet/synthetic-data/grammar/tokenizer.pkl

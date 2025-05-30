@@ -2,8 +2,10 @@ import glob
 import os
 import pickle
 from dataclasses import dataclass
+from pathlib import Path
 
 import hydra_zen
+import pandas as pd
 import torch
 import torch.nn.functional as F
 from lightning import LightningModule
@@ -17,6 +19,7 @@ from sah.algorithms.utils import (
 
 @dataclass(frozen=True, unsafe_hash=True)
 class GeneralConfig:
+    result_file: str
     batch_size: int = 32
     test_size: float = 0.2
     dim_size: int = 50
@@ -200,6 +203,36 @@ class GrammarEntropyEstimator(LightningModule):
 
         self.log("test/loss", nll, on_epoch=True, prog_bar=True)
         return nll
+
+    def on_test_epoch_end(self):
+        avg_ent = self.trainer.callback_metrics["test/loss"].item()
+        self.save_entropy(avg_ent)
+
+    def save_entropy(self, entropy):
+        result_path = Path(self.general_config.result_file)
+        first_input = self.activations_config.first_input
+        second_input = self.activations_config.second_input
+        row = {"first_input": first_input, "second_input": second_input, "entropy": entropy}
+
+        def _match(col, value):
+            if value is None:
+                return df[col].isna()
+            return df[col] == value
+
+        if result_path.exists():
+            df = pd.read_csv(result_path)
+
+            mask = _match("first_input", row["first_input"]) & _match("second_input", row["second_input"])
+
+            if mask.any():
+                df.loc[mask, "entropy"] = entropy
+            else:
+                df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
+        else:
+            df = pd.DataFrame([row])
+
+
+        df.to_csv(result_path, index=False)
 
     def configure_optimizers(self):
         return torch.optim.AdamW(self.parameters(), lr=1e-3)
