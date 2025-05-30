@@ -55,28 +55,20 @@ class ActivationDataset(Dataset):
         if first_input:
             glob_pat = os.path.join(base_path, f"{first_input}/layer{layer}_batch*.pt")
             self.first_inputs = _load_acts(glob_pat)                # [N, L, D]
+            assert self.first_inputs.shape[:-1] == self.tokens.shape
         else:
-            self.first_inputs = None
+            self.first_inputs = torch.zeros_like(self.tokens)
 
         # ── second input (notice the correct variable) ─────────────
         if second_input:
             glob_pat = os.path.join(base_path, f"{second_input}/layer{layer}_batch*.pt")
             self.second_inputs = _load_acts(glob_pat)               # [N, L, D]
+            assert self.second_inputs.shape[:-1] == self.tokens.shape
         else:
-            self.second_inputs = None
-
-        assert (self.first_inputs is None or
-                self.first_inputs.shape[:-1] == self.tokens.shape)
-        assert (self.second_inputs is None or
-                self.second_inputs.shape[:-1] == self.tokens.shape)
+            self.second_inputs = torch.zeros_like(self.tokens)
 
     def __getitem__(self, idx):
-        return (
-            self.tokens[idx],
-            self.masks[idx],
-            None if self.first_inputs  is None else self.first_inputs[idx],
-            None if self.second_inputs is None else self.second_inputs[idx],
-        )
+        return (self.tokens[idx], self.masks[idx], self.first_inputs[idx], self.second_inputs[idx])
 
     def __len__(self):
         return self.tokens.size(0)
@@ -88,7 +80,6 @@ def _load_acts(glob_pat):
         key=lambda p: int(os.path.basename(p).split("_")[1].removeprefix("batch").removesuffix(".pt"))
     )
     return torch.cat([torch.load(p)["activations"] for p in paths], dim=0)
-
 
 @hydra_zen.hydrated_dataclass(
     target=ActivationDataset,
