@@ -51,15 +51,14 @@ class GrammarFinetuner(LightningModule):
         x, mask = batch                 # x : (B, L)
         inputs  = x[:, :-1]             # drop last token
         targets = x[:, 1:]              # predict this
-        target_mask   = mask[:, 1:]
 
         logits = self.transformer(inputs)
-        token_loss = F.cross_entropy(
+        loss = F.cross_entropy(
             logits.view(-1, self.tokenizer.vocab_size),
             targets.reshape(-1),
-            reduction='none'
+            reduction='mean',
+            ignore_index=self.pad
         )
-        loss = (token_loss * target_mask.reshape(-1)).sum() / target_mask.sum()
 
         self.log("train_loss", loss, prog_bar=True, on_epoch=True)
         return loss
@@ -71,12 +70,12 @@ class GrammarFinetuner(LightningModule):
         logits = self.transformer(inputs)  # (B, L-1, V)
         target_mask = mask[:, 1:]
 
-        token_loss = F.cross_entropy(
+        loss = F.cross_entropy(
             logits.view(-1, self.tokenizer.vocab_size),
             targets.reshape(-1),
-            reduction='none'
+            reduction='mean',
+            ignore_index=self.pad
         )
-        loss = (token_loss * target_mask.reshape(-1)).sum() / target_mask.sum()
         self.log("test/loss", loss, prog_bar=True)
 
         preds    = logits.argmax(-1)
