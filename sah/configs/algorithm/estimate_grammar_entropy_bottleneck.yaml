@@ -1,0 +1,22 @@
+_target_: sah.algorithms.estimate_grammar_entropy_bottleneck.GrammarEntropyBottleneck
+grammar_config:
+  _target_: sah.algorithms.utils.GrammarConfig
+  base_path: /network/scratch/b/brownet/synthetic-data/subgrammar
+tokenizer_config:
+  _target_: sah.algorithms.utils.TokenizerConfig
+  out_path: /network/scratch/b/brownet/synthetic-data/grammar/tokenizer.pkl
+checkpoint_config:
+  _target_: sah.algorithms.estimate_grammar_entropy_bottleneck.CheckpointConfig
+  path: /network/scratch/b/brownet/hydra-runs/grammar/checkpoints/pretraining_step_02600
+transformer_config:
+  _target_: sah.algorithms.networks.transformer.TransformerConfig
+  d_model: 50
+  dim_feedforward: 200
+  n_heads: 5
+  n_layers: 5
+general_config:
+  _target_: sah.algorithms.estimate_grammar_entropy_bottleneck.GeneralConfig
+  _recursive_: false
+  _convert_: object
+  result_file: ${hydra:runtime.output_dir}/grammar-entropies.csv
+  probe_start: 0

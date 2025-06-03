@@ -45,6 +45,7 @@ class ActivationDataset(Dataset):
         self.layers = sorted(layers)
         inputs_per_layer = []
         outputs_per_layer = []
+        masks_per_layer = []
 
         for L in self.layers:
             out_glob = os.path.join(base_path, output_dir, f"layer{L}_batch*.pt")
@@ -78,16 +79,18 @@ class ActivationDataset(Dataset):
 
             inputs_per_layer.append(torch.cat(inp_tensors, dim=0))
             outputs_per_layer.append(torch.cat(out_tensors, dim=0))
+            masks_per_layer.append(torch.cat(masks, dim=0))
 
         self.inputs  = torch.stack(inputs_per_layer,  dim=1)
         self.outputs = torch.stack(outputs_per_layer, dim=1)
+        self.masks = torch.stack(masks_per_layer, dim=1)
         assert self.inputs.shape == self.outputs.shape
 
     def __len__(self):
         return self.inputs.size(0)
 
     def __getitem__(self, idx):
-        return self.inputs[idx], self.outputs[idx]
+        return self.inputs[idx], self.masks[idx], self.outputs[idx]
 
 @hydra_zen.hydrated_dataclass(
     target=ActivationDataset,
@@ -114,7 +117,7 @@ class EntropyEstimator(LightningModule):
         self.transformer_config = transformer_config
         self.general_config = general_config
         self.network: GaussianTransformer | None = None
-        self.loss_fn = nn.GaussianNLLLoss(full=True, eps=1e-5)
+        self.loss_fn = nn.GaussianNLLLoss(full=True, eps=1e-5, reduction='none')
 
     def setup(self, stage: str):
         if stage == "fit":
@@ -153,30 +156,39 @@ class EntropyEstimator(LightningModule):
         self.network = hydra_zen.instantiate(self.transformer_config)
 
     def training_step(self, batch: list[torch.Tensor], batch_idx: int):
-        input_acts, output_acts = batch
+        input_acts, mask, output_acts = batch
         input_acts = input_acts.squeeze(1)
         output_acts = output_acts.squeeze(1)
-        mu, sigma = self.network(input_acts)
-        var = sigma ** 2
-        loss = self.loss_fn(mu, output_acts, var)
-        self.log("train_loss", loss, on_step=True, on_epoch=True, prog_bar=True)
+        mask        = mask.squeeze(1).float()
 
-        return loss
+        mu,  sigma  = self.network(input_acts)
+        var = sigma.pow(2)
+
+        per_elem_loss = self.loss_fn(mu, output_acts, var).mean(dim=-1)
+
+        masked_loss = (per_elem_loss * mask).sum() / mask.sum()
+
+        self.log("train_loss", masked_loss, on_step=True,
+                 on_epoch=True, prog_bar=True, batch_size=mask.sum().item())
+
+        return masked_loss
 
     def test_step(self, batch, batch_idx):
-        input_acts, output_acts = batch
-        input_acts = input_acts.squeeze(1)
+        input_acts, mask, output_acts = batch
+        input_acts  = input_acts.squeeze(1)
         output_acts = output_acts.squeeze(1)
+        mask        = mask.squeeze(1).bool()          # [B, L]
 
         mu, sigma = self.network(input_acts)
-        eps = 1e-6
-        var = sigma.pow(2).clamp(min=eps)
-        sq_err = (output_acts - mu).pow(2)
-        log_term = torch.log(2 * math.pi * var)
-        nll_per_sample = 0.5 * (sq_err / var + log_term).sum(dim=[1,2])
+        var = sigma.square().clamp_min(1e-6)
 
-        avg_ent = nll_per_sample.mean()
+        per_tok_nll = 0.5 * ( ((output_acts - mu).square() / var) +
+                              torch.log(2 * math.pi * var) ).mean(dim=-1)
+
+        avg_ent = per_tok_nll.masked_select(mask).mean()
+
         self.log("test/loss", avg_ent, on_epoch=True, prog_bar=True)
+        return avg_ent
 
     def on_test_epoch_end(self):
         avg_ent = self.trainer.callback_metrics["test/loss"].item()

@@ -61,6 +61,16 @@ class Transformer(nn.Module):
         logits = self.lm_head(x)       # (batch, seq_len, vocab_size)
         return logits
 
+    def freeze_up_to(self,  probe_start: int) -> None:
+        ordered_layers = [self.tok_emb] + list(self.encoder.layers)
+
+        if not 0 <= probe_start <= len(ordered_layers):
+            raise ValueError(f"probe_start={probe_start} out of range (0-{len(ordered_layers)})")
+
+        for idx, submodule in enumerate(ordered_layers):
+            trainable = idx >= probe_start          # freeze if index < probe_start
+            submodule.requires_grad_(trainable)
+
 @hydra_zen.hydrated_dataclass(
     target=Transformer,
     unsafe_hash=True,

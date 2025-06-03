@@ -58,6 +58,10 @@ class GaussianTransformer(nn.Module):
         dropout: float = 0.1
     ):
         super().__init__()
+        self.gate = nn.Parameter(torch.ones(embed_dim))
+        self.sigmoid = nn.Sigmoid()
+        self.default = nn.Parameter(torch.zeros(embed_dim))
+
         self.layers = nn.ModuleList([
             TransformerBlock(embed_dim, num_heads, hidden_dim, dropout)
             for _ in range(num_layers)
@@ -66,7 +70,6 @@ class GaussianTransformer(nn.Module):
         nn.init.eye_(self.mean_head.weight)
         nn.init.zeros_(self.mean_head.bias)
         self.sigma_head = nn.Linear(embed_dim, embed_dim)
-        self.sigmoid = nn.Sigmoid()
 
     def forward(
         self,
@@ -83,6 +86,9 @@ class GaussianTransformer(nn.Module):
             mu (Tensor): Means of shape (batch_size, seq_len, embed_dim).
             sigma (Tensor): Positive sigmas of shape (batch_size, seq_len, embed_dim).
         """
+        gate_vals = self.sigmoid(self.gate * 10)
+        # x = x * gate_vals.view(1, 1, -1) + self.default
+        x = x * gate_vals.view(1, 1, -1) + self.default
         for layer in self.layers:
             x = layer(x, mask)
 

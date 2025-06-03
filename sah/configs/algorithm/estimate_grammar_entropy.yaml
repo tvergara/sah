@@ -5,8 +5,8 @@ activations_config:
   _convert_: object
   base_path: /network/scratch/b/brownet/synthetic-data/activations/subgrammar
   layer: 3
-  first_input: pretraining_step_00100
-  second_input: pretraining_step_00200
+  first_input: null
+  second_input: null
 general_config:
   _target_: sah.algorithms.estimate_grammar_entropy.GeneralConfig
   _recursive_: false

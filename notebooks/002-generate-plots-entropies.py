@@ -125,24 +125,75 @@ plt.tight_layout()
 plt.savefig('ratio_predictive_info')
 
 
-pretraining_ckps = order[:8]
-ft_ckps = order[8:]
+h_ratio = []
+h_labels = []
+for i in range(1, n):
+    mask = (df['input'] == order[i]) & (df['output'] == order[i - 1])
+    cross_entropy = df[mask]['entropy'].item()
+
+    back_predictive_info = cross_entropy
+
+    mask = (df['input'] == order[i -1]) & (df['output'] == order[i])
+    cross_entropy = df[mask]['entropy'].item()
+
+    forwards_predictive_info = cross_entropy
+
+    h_ratio.append(forwards_predictive_info / back_predictive_info)
+    h_labels.append(labels[i])
+
 
 plt.figure()
+plt.plot(h_labels, h_ratio)
+plt.axhline(1, linestyle='--', linewidth=1, color='gray')  # ← horizontal line at y=1
+plt.xticks(rotation=45, ha='right')
+plt.title('Ratio')
+plt.tight_layout()
+plt.savefig('ratio_entropy')
+
+pretraining_ckps = order[:8]
+ft_ckps = order[8:]
+ft_h_values = []
+ft = ft_ckps[0]
+
 for pretraining in pretraining_ckps:
-    values = []
+    mask = (df['input'] == pretraining) & (df['output'] == ft)
+    cross_entropy = df[mask]['entropy'].item()
 
-    for ft in ft_ckps:
-        mask = (df['input'] == pretraining) & (df['output'] == ft)
-        cross_entropy = df[mask]['entropy'].item()
+    ft_h_values.append(cross_entropy)
 
-        mask = (df['input'].isna()) & (df['output'] == ft)
-        entropy = df[mask]['entropy'].item()
-
-        predictive_info = entropy - cross_entropy
-        values.append(predictive_info)
-
-    plt.plot(values, label=pretraining)
-
+plt.figure()
+plt.plot(pretraining_ckps, ft_h_values)
+plt.xticks(rotation=45, ha='right')
 plt.tight_layout()
 plt.legend()
+plt.savefig('ft_entropies')
+
+h_forward = []
+for i in range(1, n):
+    mask = (df['input'] == order[i -1]) & (df['output'] == order[i])
+    cross_entropy = df[mask]['entropy'].item()
+
+    h_forward.append(cross_entropy)
+
+
+plt.figure()
+plt.plot(labels[1:], h_forward)
+plt.xticks(rotation=45, ha='right')
+plt.title('cross entropy')
+plt.tight_layout()
+plt.savefig('forward_entropy')
+
+h_back = []
+for i in range(1, n):
+    mask = (df['input'] == order[i]) & (df['output'] == order[i - 1])
+    cross_entropy = df[mask]['entropy'].item()
+
+    h_back.append(cross_entropy)
+
+
+plt.figure()
+plt.plot(labels[:-1], h_back)
+plt.xticks(rotation=45, ha='right')
+plt.title('cross entropy')
+plt.tight_layout()
+plt.savefig('back_entropy')
