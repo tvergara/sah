@@ -8,6 +8,7 @@ import pandas as pd
 import torch
 import torch.nn.functional as F
 from lightning import LightningModule
+from torch import nn
 from torch.utils.data import DataLoader
 
 from sah.algorithms.networks.transformer import TransformerConfig
@@ -27,6 +28,7 @@ class CheckpointConfig:
 class GeneralConfig:
     result_file: str
     probe_start: int
+    unconditional_estimate: bool = False
 
 class GrammarEntropyBottleneck(LightningModule):
     def __init__(
@@ -55,12 +57,20 @@ class GrammarEntropyBottleneck(LightningModule):
         self.checkpoint_config = checkpoint_config
         load_weights_from_checkpoint(self.transformer, checkpoint_config.path, model_name='transformer')
 
+        if self.general_config.unconditional_estimate:
+            self.logits = nn.Parameter(torch.zeros(self.tokenizer.vocab_size))
+
     def training_step(self, batch, batch_idx):
         x, _ = batch                 # x : (B, L)
         inputs  = x[:, :-1]             # drop last token
         targets = x[:, 1:]              # predict this
 
-        logits = self.transformer(inputs)
+        if self.general_config.unconditional_estimate:
+            B, L = targets.shape
+            logits = self.logits.expand(B, L, -1)
+        else:
+            logits = self.transformer(inputs)  # (B, L-1, V)
+
         loss = F.cross_entropy(
             logits.view(-1, self.tokenizer.vocab_size),
             targets.reshape(-1),
@@ -72,10 +82,15 @@ class GrammarEntropyBottleneck(LightningModule):
         return loss
 
     def test_step(self, batch, batch_idx):
-        x, mask = batch                 # (B, L)
+        x, _ = batch                 # (B, L)
         inputs  = x[:, :-1]
         targets = x[:, 1:]
-        logits = self.transformer(inputs)  # (B, L-1, V)
+
+        if self.general_config.unconditional_estimate:
+            B, L = targets.shape
+            logits = self.logits.expand(B, L, -1)
+        else:
+            logits = self.transformer(inputs)  # (B, L-1, V)
 
         loss = F.cross_entropy(
             logits.view(-1, self.tokenizer.vocab_size),
@@ -103,7 +118,8 @@ class GrammarEntropyBottleneck(LightningModule):
         row = {
             "revision": revision,
             "probe_start": self.general_config.probe_start,
-            "entropy": entropy
+            "entropy": entropy,
+            "unconditional": self.general_config.unconditional_estimate,
         }
 
         def _match(col, value):
@@ -114,7 +130,7 @@ class GrammarEntropyBottleneck(LightningModule):
         if result_path.exists():
             df = pd.read_csv(result_path)
 
-            mask = _match("revision", row["revision"]) & _match("probe_start", row["probe_start"])
+            mask = _match("revision", row["revision"]) & _match("probe_start", row["probe_start"]) & _match("unconditional", row["unconditional"])
 
             if mask.any():
                 df.loc[mask, "entropy"] = entropy

@@ -13,6 +13,11 @@ cd ~/sah
 
 . .venv/bin/activate
 
+echo "=== running unconditional estimate ==="
+python sah/main.py \
+  experiment=entropy-with-bottleneck \
+  algorithm.general_config.unconditional_estimate=true
+
 for i in {1..26}; do
   RAW=$(( i * 100 ))
   REV=$(printf "%05d" "${RAW}")

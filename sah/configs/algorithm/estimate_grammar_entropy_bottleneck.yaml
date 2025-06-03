@@ -20,3 +20,4 @@ general_config:
   _convert_: object
   result_file: ${hydra:runtime.output_dir}/grammar-entropies.csv
   probe_start: 0
+  unconditional_estimate: false
