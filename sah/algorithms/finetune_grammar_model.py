@@ -48,19 +48,20 @@ class GrammarFinetuner(LightningModule):
         load_weights_from_checkpoint(self.transformer, checkpoint_config.path, model_name='transformer')
 
     def training_step(self, batch, batch_idx):
-        x, _ = batch                 # x : (B, L)
+        x, mask = batch                 # x : (B, L)
         inputs  = x[:, :-1]             # drop last token
         targets = x[:, 1:]              # predict this
+        target_mask   = mask[:, 1:]
 
         logits = self.transformer(inputs)
-        loss = F.cross_entropy(
+        token_loss = F.cross_entropy(
             logits.view(-1, self.tokenizer.vocab_size),
             targets.reshape(-1),
-            reduction='mean',
-            ignore_index=self.pad
+            reduction='none'
         )
+        loss = (token_loss * target_mask.reshape(-1)).sum() / target_mask.sum()
 
-        self.log("train_loss", loss, prog_bar=True)
+        self.log("train_loss", loss, prog_bar=True, on_epoch=True)
         return loss
 
     def test_step(self, batch, batch_idx):
@@ -68,19 +69,19 @@ class GrammarFinetuner(LightningModule):
         inputs  = x[:, :-1]
         targets = x[:, 1:]
         logits = self.transformer(inputs)  # (B, L-1, V)
+        target_mask = mask[:, 1:]
 
-        loss = F.cross_entropy(
+        token_loss = F.cross_entropy(
             logits.view(-1, self.tokenizer.vocab_size),
             targets.reshape(-1),
-            reduction='mean',
-            ignore_index=self.pad,
+            reduction='none'
         )
-
+        loss = (token_loss * target_mask.reshape(-1)).sum() / target_mask.sum()
         self.log("test/loss", loss, prog_bar=True)
 
-        preds = logits.argmax(-1)
-        correct = ((preds == targets) & (targets != self.pad)).sum()
-        n_tokens = (targets != self.pad).sum()
+        preds    = logits.argmax(-1)
+        correct  = ((preds == targets) & (target_mask.bool())).sum()
+        n_tokens = target_mask.sum()
         acc = correct.float() / n_tokens
         self.log("accuracy", acc, prog_bar=True, sync_dist=True)
 
