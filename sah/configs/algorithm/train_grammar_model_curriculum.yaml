@@ -1,0 +1,16 @@
+_target_: sah.algorithms.train_grammar_model_curriculum.CurriculumGrammarTrainer
+grammar_config:
+  _target_: sah.algorithms.train_grammar_model_curriculum.GrammarConfig
+  base_path: /network/scratch/b/brownet/synthetic-data/grammar
+  grammars: [9, 8, 7, 6, 5, 4, 3, 2, 1, 0] # [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10] #, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+  # grammars: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] #, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]
+  order_strategy: gradual
+tokenizer_config:
+  _target_: sah.algorithms.train_grammar_model_curriculum.TokenizerConfig
+  out_path: /network/scratch/b/brownet/synthetic-data/grammar/tokenizer.pkl
+transformer_config:
+  _target_: sah.algorithms.networks.transformer.TransformerConfig
+  d_model: 50
+  dim_feedforward: 200
+  n_heads: 5
+  n_layers: 5

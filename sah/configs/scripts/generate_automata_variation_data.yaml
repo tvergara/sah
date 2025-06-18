@@ -1,0 +1,17 @@
+initial_automaton:
+  path: /network/scratch/b/brownet/synthetic-data/base-automata
+
+mod:
+  remove_states: 2
+  add_states: 2
+  gamma_token: 1.4        # sharpen token rows
+  gamma_trans: 1.4        # slightly flatten transition rows
+  new_state_noise: 0.1
+  seed: 42
+
+dataset:
+  n: 4000
+  seq_len: 500
+  test_split: 0.2
+  seed: 42
+  out_dir: /network/scratch/b/brownet/synthetic-data/automata-variation

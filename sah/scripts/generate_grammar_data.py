@@ -60,7 +60,7 @@ def make_random_cfg(
     start_rule = "S -> " + " ".join(["N0"] * min_len)
     productions.insert(0, start_rule)  # make S the first rule (hence start)
 
-    return "\n".join(productions)
+    return "\n".join(productions), terms
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Hydra configuration schema
@@ -98,7 +98,7 @@ class Config:
 def create_dataset(cfg: Config):
     random.seed(cfg.dataset.seed)
 
-    grammar_text = make_random_cfg(**OmegaConf.to_container(cfg.grammar, resolve=True))
+    grammar_text, terms = make_random_cfg(**OmegaConf.to_container(cfg.grammar, resolve=True))
     cfg_obj = CFG.fromstring(grammar_text)
 
     data: list[str] = []
@@ -119,6 +119,7 @@ def create_dataset(cfg: Config):
     (out_dir / "grammar.txt").write_text(grammar_text)
     (out_dir / "train.txt").write_text("\n".join(train_data))
     (out_dir / "test.txt").write_text("\n".join(test_data))
+    (out_dir / "literals.txt").write_text("\n".join(terms))
 
     # 2) snapshot active config (YAML‑only)
     (out_dir / "hyperparams.yaml").write_text(OmegaConf.to_yaml(cfg))

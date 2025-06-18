@@ -1,0 +1,13 @@
+automaton:
+  n_states: 50
+  vocab_size: 20
+  alpha_tokens: 0.01
+  p_self_loop: 0.8
+  seed: 42
+
+dataset:
+  n: 100_000
+  seq_len: 500
+  test_split: 0.05
+  seed: 42
+  save_dir: /network/scratch/b/brownet/synthetic-data/base-automata

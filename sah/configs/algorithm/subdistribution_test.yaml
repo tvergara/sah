@@ -1,4 +1,4 @@
-_target_: sah.algorithms.estimate_grammar_entropy_bottleneck.GrammarEntropyBottleneck
+_target_: sah.algorithms.subdistribution_test.SubdistributionTest
 grammar_config:
   _target_: sah.algorithms.utils.GrammarConfig
   base_path: /network/scratch/b/brownet/synthetic-data/subgrammar
@@ -6,9 +6,6 @@ grammar_config:
 tokenizer_config:
   _target_: sah.algorithms.utils.TokenizerConfig
   out_path: /network/scratch/b/brownet/synthetic-data/grammar/tokenizer.pkl
-checkpoint_config:
-  _target_: sah.algorithms.estimate_grammar_entropy_bottleneck.CheckpointConfig
-  path: /network/scratch/b/brownet/hydra-runs/grammar/checkpoints/pretraining_step_02600
 transformer_config:
   _target_: sah.algorithms.networks.transformer.TransformerConfig
   d_model: 50
@@ -16,10 +13,9 @@ transformer_config:
   n_heads: 5
   n_layers: 5
 general_config:
-  _target_: sah.algorithms.estimate_grammar_entropy_bottleneck.GeneralConfig
+  _target_: sah.algorithms.subdistribution_test.GeneralConfig
   _recursive_: false
   _convert_: object
-  result_file: ${hydra:runtime.output_dir}/grammar-entropies.csv
-  probe_start: 0
-  unconditional_estimate: false
-  id: some-id
+  subdistribution_model: /network/scratch/b/brownet/hydra-runs/grammar/checkpoints/pretraining_step_02600
+  # subdistribution_model: /network/scratch/b/brownet/hydra-runs/grammar/checkpoints/seed_43_pretraining_step_02600
+  distribution_model: /network/scratch/b/brownet/hydra-runs/finetune-grammar/checkpoints/finetuning_step_00130

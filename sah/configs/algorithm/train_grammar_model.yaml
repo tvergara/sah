@@ -1,10 +1,10 @@
 _target_: sah.algorithms.train_grammar_model.GrammarTrainer
 grammar_config:
   _target_: sah.algorithms.train_grammar_model.GrammarConfig
-  base_path: /network/scratch/b/brownet/synthetic-data/grammar
+  base_path: /network/scratch/b/brownet/synthetic-data/base-automata
 tokenizer_config:
   _target_: sah.algorithms.train_grammar_model.TokenizerConfig
-  out_path: /network/scratch/b/brownet/synthetic-data/grammar/tokenizer.pkl
+  out_path: /network/scratch/b/brownet/synthetic-data/base-automata/tokenizer.pkl
 transformer_config:
   _target_: sah.algorithms.networks.transformer.TransformerConfig
   d_model: 50

@@ -13,9 +13,9 @@ cd ~/sah
 
 . .venv/bin/activate
 
-python -m sah.scripts.generate_grammar_data --config-path ../../sah/configs/scripts --config-name generate_grammar_data.yaml dataset.save_dir=/network/scratch/b/brownet/synthetic-data/grammar-0 dataset.n=5000 grammar.n_nonterms=40 grammar.n_terms=20 grammar.n_prods_per_nonterm=3 grammar.avg_branch=4 dataset.max_depth=12
+python -m sah.scripts.generate_grammar_data --config-path ../../sah/configs/scripts --config-name generate_grammar_data.yaml dataset.save_dir=/network/scratch/b/brownet/synthetic-data/grammar-0 dataset.n=300 grammar.n_nonterms=300 grammar.n_terms=20 grammar.n_prods_per_nonterm=3 grammar.avg_branch=4 dataset.max_depth=12
 
 
-for i in {1..10}; do
-  python -m sah.scripts.generate_subgrammar_data --config-path ../../sah/configs/scripts --config-name generate_subgrammar_data.yaml dataset.out_dir=/network/scratch/b/brownet/synthetic-data/grammar-${i} dataset.n=5000 dataset.max_depth=12 initial_grammar.path=/network/scratch/b/brownet/synthetic-data/grammar-$((i - 1)) trim.keep_prob=0.8
+for i in {1..20}; do
+  python -m sah.scripts.generate_subgrammar_data --config-path ../../sah/configs/scripts --config-name generate_subgrammar_data.yaml dataset.out_dir=/network/scratch/b/brownet/synthetic-data/grammar-${i} dataset.n=300 dataset.max_depth=12 initial_grammar.path=/network/scratch/b/brownet/synthetic-data/grammar-$((i - 1)) trim.keep_prob=0.95
 done

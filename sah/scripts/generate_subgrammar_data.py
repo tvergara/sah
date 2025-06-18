@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import random
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -32,9 +33,6 @@ def trim_grammar(
     • start rule is always kept,
     • (optional) each non-terminal keeps ≥1 lexical rule if it had one.
     """
-    if seed is not None:
-        random.seed(seed)
-
     kept: dict[Nonterminal, list[Production]] = {lhs: [] for lhs in g._lhs_index}
     start_lhs = g.start()
 
@@ -104,8 +102,13 @@ def create_dataset(cfg: Config):
         seed=cfg.trim.seed,
     )
 
+
+    yaml_str = OmegaConf.to_yaml(cfg)
+    digest = hashlib.sha256(yaml_str.encode("utf-8")).hexdigest()
+    derived_seed = int(digest, 16) % (2 ** 32)
+
     # ––– Generate sentences –––
-    random.seed(cfg.dataset.seed)
+    random.seed(derived_seed)
     data: list[str] = []
     for _ in tqdm(range(cfg.dataset.n), desc="Generating sentences"):
         data.append(" ".join(random_sentence(pruned, max_depth=cfg.dataset.max_depth)))

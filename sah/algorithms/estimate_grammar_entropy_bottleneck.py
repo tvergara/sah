@@ -28,7 +28,9 @@ class CheckpointConfig:
 class GeneralConfig:
     result_file: str
     probe_start: int
+    id: str
     unconditional_estimate: bool = False
+    l2_coef: float = 10.0
 
 class GrammarEntropyBottleneck(LightningModule):
     def __init__(
@@ -46,7 +48,12 @@ class GrammarEntropyBottleneck(LightningModule):
             self.tokenizer = pickle.load(f)
 
         self.dataset = hydra_zen.instantiate(self.grammar_config, tokenizer=self.tokenizer)
-        self.test_dataset = hydra_zen.instantiate(self.grammar_config, mode='test', tokenizer=self.tokenizer)
+        self.test_dataset = hydra_zen.instantiate(
+            self.grammar_config,
+            mode='test',
+            tokenizer=self.tokenizer,
+            size=None
+        )
         self.pad  = self.dataset.pad_id
         self.transformer = hydra_zen.instantiate(
             transformer_config,
@@ -56,9 +63,15 @@ class GrammarEntropyBottleneck(LightningModule):
         self.transformer.freeze_up_to(general_config.probe_start)
         self.checkpoint_config = checkpoint_config
         load_weights_from_checkpoint(self.transformer, checkpoint_config.path, model_name='transformer')
+        self._init_params = {
+            n: p.detach().clone()
+            for n, p in self.named_parameters()
+            if p.requires_grad
+        }
 
         if self.general_config.unconditional_estimate:
             self.logits = nn.Parameter(torch.zeros(self.tokenizer.vocab_size))
+        # self.test_step = self.validation_step
 
     def training_step(self, batch, batch_idx):
         x, _ = batch                 # x : (B, L)
@@ -71,14 +84,33 @@ class GrammarEntropyBottleneck(LightningModule):
         else:
             logits = self.transformer(inputs)  # (B, L-1, V)
 
-        loss = F.cross_entropy(
+        ce_loss = F.cross_entropy(
             logits.view(-1, self.tokenizer.vocab_size),
             targets.reshape(-1),
             reduction='mean',
             ignore_index=self.pad
         )
 
-        self.log("train_loss", loss, prog_bar=True)
+        if self.general_config.l2_coef > 0 and not self.general_config.unconditional_estimate:
+            l2_reg = 0.0
+            for name, p in self.named_parameters():
+                if not p.requires_grad:
+                    continue
+                init_p = self._init_params[name].to(p.device)
+                l2_reg += (p - init_p).pow(2).sum()
+            l2_reg = self.general_config.l2_coef * l2_reg
+        else:
+            l2_reg = 0.0
+
+        loss = ce_loss + l2_reg
+        self.log_dict(
+            {
+                "train/loss": loss,
+                "train/ce_loss": ce_loss,
+                "train/l2_reg": l2_reg,
+            },
+            prog_bar=True,
+        )
         return loss
 
     def test_step(self, batch, batch_idx):
@@ -120,6 +152,8 @@ class GrammarEntropyBottleneck(LightningModule):
             "probe_start": self.general_config.probe_start,
             "entropy": entropy,
             "unconditional": self.general_config.unconditional_estimate,
+            "size": self.grammar_config.size,
+            "id": self.general_config.id
         }
 
         def _match(col, value):
@@ -130,7 +164,7 @@ class GrammarEntropyBottleneck(LightningModule):
         if result_path.exists():
             df = pd.read_csv(result_path)
 
-            mask = _match("revision", row["revision"]) & _match("probe_start", row["probe_start"]) & _match("unconditional", row["unconditional"])
+            mask = _match("revision", row["revision"]) & _match("probe_start", row["probe_start"]) & _match("unconditional", row["unconditional"]) & _match("size", row["size"]) & _match("id", row["id"])
 
             if mask.any():
                 df.loc[mask, "entropy"] = entropy

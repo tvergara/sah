@@ -1,5 +1,4 @@
-import itertools
-from collections import Counter, OrderedDict
+from collections import OrderedDict
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -20,9 +19,9 @@ def load_weights_from_checkpoint(model, path, model_name='network'):
     model.load_state_dict(new_state_dict)
 
 class TinyTokenizer:
-    def __init__(self, counter: Counter, max_length=512):
+    def __init__(self, vocab: list, max_length=512):
         specials  = ["<PAD>", "<UNK>"]
-        self.itos = specials + [tok for tok, c in counter.items() if c >= 1]
+        self.itos = specials + vocab
         self.stoi = {tok: i for i, tok in enumerate(self.itos)}
         self.pad_id = self.stoi["<PAD>"]
         self.unk_id = self.stoi["<UNK>"]
@@ -46,16 +45,27 @@ class TinyTokenizer:
     def __len__(self): return len(self.itos)
 
 class GrammarDataset(Dataset):
-    def __init__(self, base_path: str, max_length: int = 512, mode='train', tokenizer=None):
+    def __init__(
+        self,
+        base_path: str,
+        max_length: int = 512,
+        mode='train',
+        tokenizer=None,
+        size=None
+    ):
         fp = Path(base_path) / f"{mode}.txt"
         if not fp.exists():
             raise FileNotFoundError(fp)
 
         raw_sents   = [ln.strip().split()[:max_length] for ln in fp.read_text().splitlines()]
 
+        if size:
+            raw_sents = raw_sents[:size]
+
         if not tokenizer:
-            vocab_ctr = Counter(itertools.chain.from_iterable(raw_sents))
-            self.tokenizer = TinyTokenizer(vocab_ctr, max_length=max_length)
+            fp = Path(base_path) / "literals.txt"
+            vocab = fp.read_text().splitlines()
+            self.tokenizer = TinyTokenizer(vocab, max_length=max_length)
         else:
             self.tokenizer = tokenizer
 
@@ -79,6 +89,7 @@ def collate(batch):
 )
 class GrammarConfig:
     base_path: str
+    size: int | None = None
     max_length: int = 512
 
 @dataclass(frozen=True, unsafe_hash=True)

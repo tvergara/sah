@@ -1,0 +1,11 @@
+automaton:
+  variant_path: /network/scratch/b/brownet/synthetic-data/automata-variation
+  original_path: /network/scratch/b/brownet/synthetic-data/base-automata
+
+eval:
+  device: cuda
+  eps: 1e-12
+
+result:
+  run_id: some-id
+  file: /network/scratch/b/brownet/hydra-runs/entropy-bottleneck/entropies.csv

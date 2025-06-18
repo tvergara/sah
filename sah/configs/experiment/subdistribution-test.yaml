@@ -1,16 +1,15 @@
 # @package _global_
 
 defaults:
-  - override /algorithm: estimate_grammar_entropy_bottleneck
+  - override /algorithm: subdistribution_test
   - override /trainer/callbacks: default
 
 trainer:
   enable_checkpointing: false
-  limit_train_batches: 1000
+  limit_train_batches: 0
   val_check_interval: 0
   limit_val_batches: 0.0
-  max_epochs: 1000
   callbacks:
     model_checkpoint: null
 
-name: entropy-bottleneck
+name: subdistribution-test
