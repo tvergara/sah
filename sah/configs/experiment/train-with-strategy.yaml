@@ -1,0 +1,15 @@
+# @package _global_
+
+defaults:
+  - override /algorithm: train_with_strategy
+  - override /trainer/callbacks: default
+
+trainer:
+  enable_checkpointing: true
+  limit_val_batches: 0.0
+  val_check_interval: 0
+  max_epochs: 1
+  callbacks:
+    model_checkpoint: null
+
+name: train-with-strategy
