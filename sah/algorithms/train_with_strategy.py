@@ -1,14 +1,17 @@
 
 from dataclasses import dataclass
 from pathlib import Path
+from random import shuffle
 
 import hydra_zen
+import pandas as pd
 import torch
 import torch.nn.functional as F
 from lightning import LightningModule
-from torch.utils.data import ConcatDataset, DataLoader, Subset
+from torch.utils.data import ConcatDataset, DataLoader, SequentialSampler, Subset
 from tqdm import tqdm
 
+from sah.algorithms.data_strategies.proposed_strategy import get_idx_with_proposed_strategy
 from sah.algorithms.networks.transformer import TransformerConfig
 from sah.algorithms.ngram_model import get_ngram
 from sah.algorithms.utils import GrammarConfig, GrammarDataset, TokenizerConfig, collate
@@ -19,6 +22,9 @@ class GeneralConfig:
     data_variants_path: str
     pretraining_budget: int
     strategy: str
+    result_file: str
+    tau: float = 1.0
+    alpha: float = 1.0
 
 class TrainWithStrategy(LightningModule):
     def __init__(
@@ -35,7 +41,7 @@ class TrainWithStrategy(LightningModule):
         self.general_config = general_config
         self.dataset = hydra_zen.instantiate(self.grammar_config)
         self.tokenizer = self.dataset.tokenizer
-        self.test_dataset = hydra_zen.instantiate(self.grammar_config, mode='test', tokenizer=self.tokenizer)
+        self.test_dataset = hydra_zen.instantiate(self.grammar_config, mode='test', tokenizer=self.tokenizer, size=512)
         self.pad  = self.dataset.pad_id
         self.tokenizer = self.dataset.tokenizer
         self.transformer = hydra_zen.instantiate(
@@ -55,7 +61,9 @@ class TrainWithStrategy(LightningModule):
         ]
         pt_dataset = ConcatDataset(self.variant_datasets)
         budget = self.general_config.pretraining_budget
-        if self.general_config.strategy == 'ngram':
+        if self.general_config.strategy == 'proposed':
+            idx = get_idx_with_proposed_strategy(self.dataset, pt_dataset, budget, self.tokenizer.vocab_size, alpha=self.general_config.alpha, tau=self.general_config.tau)
+        elif self.general_config.strategy == 'ngram':
             ngram = get_ngram(self.dataset, device='cuda')
             def score(example):
                 seq, mask = example
@@ -69,6 +77,7 @@ class TrainWithStrategy(LightningModule):
             scores = [score(pt_dataset[i]) for i in tqdm(range(len(pt_dataset)))]
             idx    = (torch.tensor(scores)
                            .topk(min(budget, len(scores))).indices.tolist())
+            shuffle(idx)
         else:
             idx = torch.randperm(len(pt_dataset))[:budget].tolist()
         self.pretraining_dataset = Subset(pt_dataset, idx)
@@ -114,7 +123,46 @@ class TrainWithStrategy(LightningModule):
         return torch.optim.AdamW(self.parameters(), lr=1e-3)
 
     def train_dataloader(self):
-        return DataLoader(self.dataset, batch_size=32, collate_fn=collate)
+        return DataLoader(
+            self.dataset,
+            batch_size=32,
+            sampler=SequentialSampler(self.dataset),
+            collate_fn=collate
+        )
 
     def test_dataloader(self):
         return DataLoader(self.test_dataset, batch_size=32, collate_fn=collate)
+
+    def on_test_epoch_end(self):
+        avg_ent = self.trainer.callback_metrics["test/loss"].item()
+        self.save_entropy(avg_ent)
+
+    def save_entropy(self, entropy):
+        result_path = Path(self.general_config.result_file)
+
+        row = {
+            "tau": self.general_config.tau,
+            "alpha": self.general_config.alpha,
+            "strategy": self.general_config.strategy,
+            "entropy": entropy,
+        }
+
+        def _match(col, value):
+            if value is None:
+                return df[col].isna()
+            return df[col] == value
+
+        if result_path.exists():
+            df = pd.read_csv(result_path)
+
+            mask = _match("tau", row["tau"]) & _match("alpha", row["alpha"]) & _match("strategy", row["strategy"])
+
+            if mask.any():
+                df.loc[mask, "entropy"] = entropy
+            else:
+                df = pd.concat([df, pd.DataFrame([row])], ignore_index=True)
+        else:
+            df = pd.DataFrame([row])
+
+
+        df.to_csv(result_path, index=False)
