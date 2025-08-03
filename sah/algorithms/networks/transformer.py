@@ -32,7 +32,7 @@ class Transformer(nn.Module):
         self.encoder = nn.TransformerEncoder(encoder_layer, num_layers=n_layers)
 
         self.lm_head = nn.Linear(d_model, vocab_size, bias=False)
-        self.lm_head.weight = self.tok_emb.weight
+        # self.lm_head.weight = self.tok_emb.weight
 
         self.dropout = nn.Dropout(dropout)
 
@@ -56,6 +56,19 @@ class Transformer(nn.Module):
             x,
             mask=causal_mask,
             src_key_padding_mask=pad_mask,
+        )
+
+        logits = self.lm_head(x)       # (batch, seq_len, vocab_size)
+        return logits
+
+    def forward_with_continuous_inputs(self, inputs: torch.Tensor) -> torch.Tensor:
+        bsz, seq_len, vocab_size = inputs.shape
+        causal_mask = torch.triu(torch.full((seq_len, seq_len), float("-inf")), diagonal=1)
+
+        x = inputs @ self.tok_emb.weight
+        x = self.encoder(
+            x,
+            mask=causal_mask,
         )
 
         logits = self.lm_head(x)       # (batch, seq_len, vocab_size)

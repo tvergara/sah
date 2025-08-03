@@ -2,7 +2,7 @@ _target_: sah.algorithms.train_with_strategy.TrainWithStrategy
 finetuning_config:
   _target_: sah.algorithms.train_with_strategy.GrammarConfig
   base_path: /network/scratch/b/brownet/synthetic-data/base-automata
-  size: 32
+  size: 128
 tokenizer_config:
   _target_: sah.algorithms.train_with_strategy.TokenizerConfig
   out_path: /network/scratch/b/brownet/synthetic-data/base-automata/tokenizer.pkl
@@ -14,9 +14,9 @@ transformer_config:
   n_layers: 5
 general_config:
   _target_: sah.algorithms.train_with_strategy.GeneralConfig
-  data_variants_path: /network/scratch/b/brownet/synthetic-data/automata-variations
-  pretraining_budget: 2048
+  data_variants_path: /network/scratch/b/brownet/synthetic-data/automata-repeated-variation
+  pretraining_budget: 4096
   strategy: proposed
-  tau: 10.0
+  tau: 0.01
   alpha: 1.5
   result_file: ${hydra:runtime.output_dir}/entropies.csv

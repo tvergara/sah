@@ -80,6 +80,7 @@ class TrainWithStrategy(LightningModule):
             shuffle(idx)
         else:
             idx = torch.randperm(len(pt_dataset))[:budget].tolist()
+
         self.pretraining_dataset = Subset(pt_dataset, idx)
 
     def training_step(self, batch, batch_idx):
@@ -120,7 +121,7 @@ class TrainWithStrategy(LightningModule):
         self.log("accuracy", acc, prog_bar=True, sync_dist=True)
 
     def configure_optimizers(self):
-        return torch.optim.AdamW(self.parameters(), lr=1e-3)
+        return torch.optim.SGD(self.parameters(), lr=1e-2)
 
     def train_dataloader(self):
         return DataLoader(

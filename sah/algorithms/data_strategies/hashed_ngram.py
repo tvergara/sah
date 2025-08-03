@@ -44,5 +44,5 @@ def get_hashed_ngram(
         counts32 += binc
 
     # --- clamp + down-cast -------------------------------------------------
-    counts8 = counts32.clamp_max_(255).to(torch.uint8)
+    counts8 = counts32.to(torch.uint8)
     return counts8

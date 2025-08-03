@@ -29,8 +29,8 @@ def get_idx_with_proposed_strategy(
     pt_dataset,
     budget=20_000,
     vocab_size=22,
-    k_per_iter=32,
-    iterations=400,
+    k_per_iter=8,
+    iterations=800,
     batch_size=2048,
     alpha=10.0,
     tau=0.1,
@@ -96,7 +96,7 @@ def get_idx_with_proposed_strategy(
 
         with torch.no_grad():
             current_ngram.add_(torch.stack([pt_ngrams[i].to(device) for i in best_ids]).sum(dim=0))
-            current_ngram.clamp_max_(255)
+            # current_ngram.clamp_max_(255)
 
         chosen_mask[best_ids] = True
         chosen_ids.extend(best_ids.tolist())

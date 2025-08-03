@@ -1,0 +1,18 @@
+# @package _global_
+
+model:
+  tokenizer_config:
+    _target_: sah.algorithms.llm_finetuning.TokenizerConfig
+    pretrained_model_name_or_path: "Qwen/Qwen2.5-1.5B-Instruct"
+    use_fast: true
+    trust_remote_code: true
+  finetuned_config:
+    _target_: sah.algorithms.llm_finetuning.NetworkConfig
+    pretrained_model_name_or_path: "Qwen/Qwen2.5-1.5B-Instruct"
+
+dataset:
+  n_batches: 10000
+  batch_size: 32
+  seq_length: 100
+  save_dir: /network/scratch/b/brownet/synthetic-data/finetuned-model-data-qwen
+  seed: 42

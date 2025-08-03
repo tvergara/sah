@@ -14,22 +14,18 @@ cd ~/sah
 . .venv/bin/activate
 
 
-states_replaced=(10 20 30)
-gamma=(0.5 1.2 1.4)
-noise=(0.3 0.5)
+states_replaced=(0 1 2 5 10)
+gamma=(0.5 0.8 1.0 1.2 1.4)
+noise=(0.1 0.3)
 
 for s in "${states_replaced[@]}"; do
   for g in "${gamma[@]}"; do
     for n in "${noise[@]}"; do
       id=$(echo "${s}_${g}_${n}" | sha1sum | cut -c1-8)
       echo "Running with states_replaced=$s, gamma=$g, noise=$n, id=$id"
-      python -m sah.scripts.generate_automata_variation_data --config-path ../../sah/configs/scripts --config-name generate_automata_variation_data.yaml \
-        mod.remove_states="$s" \
-        mod.add_states="$s" \
-        mod.gamma_token="$g" \
-        mod.gamma_trans="$g" \
-        mod.new_state_noise="$n" \
-        dataset.out_dir="/network/scratch/b/brownet/synthetic-data/automata-hard-variations/$id"
+      python sah/main.py experiment=pretrain-then-finetune \
+        algorithm.general_config.id=$id \
+        algorithm.pretraining_config.base_path=/network/scratch/b/brownet/synthetic-data/automata-variations/$id
     done
   done
 done

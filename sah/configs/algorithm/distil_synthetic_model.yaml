@@ -1,0 +1,16 @@
+_target_: sah.algorithms.distil_synthetic_model.DistilModel
+tokenizer_config:
+  _target_: sah.algorithms.utils.TokenizerConfig
+  out_path: /network/scratch/b/brownet/synthetic-data/grammar/tokenizer.pkl
+pretrained_config:
+  _target_: sah.algorithms.finetune_grammar_model.CheckpointConfig
+  path: /network/scratch/b/brownet/hydra-runs/grammar/checkpoints/pretraining_step_02600
+finetuned_config:
+  _target_: sah.algorithms.finetune_grammar_model.CheckpointConfig
+  path: /network/scratch/b/brownet/hydra-runs/finetune-grammar/checkpoints/finetuning_step_00070
+transformer_config:
+  _target_: sah.algorithms.networks.transformer.TransformerConfig
+  d_model: 50
+  dim_feedforward: 200
+  n_heads: 5
+  n_layers: 5
