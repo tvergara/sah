@@ -1,4 +1,5 @@
 from .gpt4all_formatter import Gpt4allFormatter
+from .lima_formatter import LimaFormatter
 from .xsum_formatter import XsumFormatter
 
 
@@ -7,6 +8,8 @@ def get_dataset_formatter(dataset_path: str):
         return XsumFormatter()
     if dataset_path == 'nomic-ai/gpt4all-j-prompt-generations':
         return Gpt4allFormatter()
+    if dataset_path == 'GAIR/lima':
+        return LimaFormatter()
 
     return DefaultFormatter()
 
