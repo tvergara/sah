@@ -55,7 +55,7 @@ class FinetuneOnLima(LightningModule):
         self.save_hyperparameters()
 
         self.tokenizer = hydra_zen.instantiate(tokenizer_config)
-        self.model = hydra_zen.instantiate(pretrained_config, torch_dtype=torch.bfloat16)
+        self.model = hydra_zen.instantiate(pretrained_config)
         self.batch_size = batch_size
         self.block_size = block_size
 

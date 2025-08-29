@@ -1,4 +1,5 @@
 import re
+from dataclasses import dataclass
 
 import hydra_zen
 import requests
@@ -8,6 +9,12 @@ from torch.utils.data import DataLoader, Dataset
 
 from sah.algorithms.llm_finetuning import NetworkConfig, TokenizerConfig
 
+from .utils import load_weights_from_checkpoint
+
+
+@dataclass(frozen=True, unsafe_hash=True)
+class CheckpointConfig:
+    path: str
 
 class NaturalInstructionsDataset(Dataset):
     def __init__(self, data, tokenizer):
@@ -21,7 +28,7 @@ class NaturalInstructionsDataset(Dataset):
             entry = instance['input']
             output = instance['output'][0]
 
-            prompt = f"{definition} You are allowed to think, and then you will answer in the <answer>your answer</answer>\n\nInput: {entry}\n\nThought:"
+            prompt = f"{definition} You are allowed to think, and then you will answer by saying 'the answer is (1 or 0)'. The date you will use {entry}, is it a valid date? Please reason and then answer\n\nAssistant: First,"
 
             self.prompts.append(prompt)
             self.outputs.append(output)
@@ -47,6 +54,7 @@ class EvaluateNaturalInstructions(LightningModule):
         self,
         tokenizer_config: TokenizerConfig,
         pretrained_config: NetworkConfig,
+        checkpoint_config: CheckpointConfig,
         batch_size: int = 16,
         completion_length: int = 512
     ):
@@ -55,6 +63,7 @@ class EvaluateNaturalInstructions(LightningModule):
 
         self.tokenizer = hydra_zen.instantiate(tokenizer_config)
         self.model = hydra_zen.instantiate(pretrained_config, torch_dtype=torch.bfloat16)
+        load_weights_from_checkpoint(self.model, checkpoint_config.path, model_name='model')
         self.completion_length = completion_length
 
 
@@ -84,7 +93,7 @@ class EvaluateNaturalInstructions(LightningModule):
         for i, gen_tokens in enumerate(generated):
             decoded = self.tokenizer.decode(gen_tokens[-self.completion_length:], skip_special_tokens=True)
 
-            answer_match = re.search(r'<answer>(.*?)</answer>', decoded, re.DOTALL)
+            answer_match = re.search(r'answer is (\d)', decoded, re.DOTALL)
             extracted_answer = answer_match.group(1).strip() if answer_match else ""
             expected_output = batch['expected_output'][i]
             normalized_extracted = normalize_text(extracted_answer)
