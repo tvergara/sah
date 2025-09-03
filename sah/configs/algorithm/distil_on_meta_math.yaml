@@ -1,0 +1,18 @@
+_target_: sah.algorithms.distil_on_meta_math.DistilOnMetaMath
+tokenizer_config:
+  _target_: sah.algorithms.llm_finetuning.TokenizerConfig
+  _recursive_: false
+  _convert_: object
+  pretrained_model_name_or_path: ${..pretrained_config.pretrained_model_name_or_path}
+  use_fast: true
+  trust_remote_code: true
+pretrained_config:
+  _target_: sah.algorithms.llm_finetuning.NetworkConfig
+  _recursive_: false
+  _convert_: object
+  pretrained_model_name_or_path: Qwen/Qwen2.5-1.5B
+checkpoint_config:
+  _target_: sah.algorithms.distil_on_meta_math.CheckpointConfig
+  path: /network/scratch/b/brownet/hydra-runs/finetune-on-meta_math/checkpoints/final
+batch_size: 2
+teacher_gpu: 1
