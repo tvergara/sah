@@ -1,0 +1,30 @@
+# @package _global_
+
+defaults:
+  - override /algorithm: compressed_finetune_on_meta_math
+  - override /trainer/callbacks: default
+
+trainer:
+  enable_checkpointing: true
+  limit_val_batches: 0.0
+  val_check_interval: 0
+  max_epochs: 1
+  accumulate_grad_batches: 1
+  precision: "bf16-mixed"
+  callbacks:
+    model_checkpoint:
+      save_top_k: 0
+      save_last: true
+      every_n_train_steps: 200
+    throughput: null
+  strategy:
+    _target_: lightning.pytorch.strategies.FSDPStrategy
+    sharding_strategy: NO_SHARD
+    # cpu_offload: true
+    backward_prefetch: BACKWARD_PRE
+    forward_prefetch: true
+    limit_all_gathers: true
+  devices: 2
+
+name: compressed-finetune-on-meta-math
+ckpt_path: last

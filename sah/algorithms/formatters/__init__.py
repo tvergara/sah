@@ -1,5 +1,6 @@
 from .gpt4all_formatter import Gpt4allFormatter
 from .lima_formatter import LimaFormatter
+from .meta_math_formatter import MetaMathFormatter
 from .xsum_formatter import XsumFormatter
 
 
@@ -10,6 +11,8 @@ def get_dataset_formatter(dataset_path: str):
         return Gpt4allFormatter()
     if dataset_path == 'GAIR/lima':
         return LimaFormatter()
+    if dataset_path == "meta-math/MetaMathQA":
+        return MetaMathFormatter()
 
     return DefaultFormatter()
 

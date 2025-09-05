@@ -13,7 +13,7 @@ def load_weights_from_checkpoint(model, path, model_name='network'):
 
     new_state_dict = OrderedDict()
     for k, v in state_dict.items():
-        if f"{model_name}." in k:
+        if k.startswith(f"{model_name}."):
             name = k[len(model_name) + 1:]
             new_state_dict[name] = v
 
