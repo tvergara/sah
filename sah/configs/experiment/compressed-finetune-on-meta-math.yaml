@@ -19,12 +19,13 @@ trainer:
     throughput: null
   strategy:
     _target_: lightning.pytorch.strategies.FSDPStrategy
-    sharding_strategy: NO_SHARD
-    # cpu_offload: true
+    sharding_strategy: FULL_SHARD
+    cpu_offload: true
     backward_prefetch: BACKWARD_PRE
     forward_prefetch: true
     limit_all_gathers: true
-  devices: 2
+    # use_orig_params: false
+  devices: 8
 
 name: compressed-finetune-on-meta-math
 ckpt_path: last
