@@ -1,21 +1,14 @@
 import hydra_zen
 import torch
-import torch.distributed as dist
 import torch.nn.functional as F
 from datasets import load_dataset
 from lightning import LightningModule
 from torch import nn
-from torch.distributed.fsdp.wrap import ModuleWrapPolicy
 from torch.utils.data import DataLoader, Dataset
 from transformers import DataCollatorForLanguageModeling
 
 from sah.algorithms.formatters import get_dataset_formatter
 from sah.algorithms.llm_finetuning import NetworkConfig, TokenizerConfig
-
-
-def get_scale_manager_wrap_policy():
-    """Return FSDP auto wrap policy for ScaleManager modules only."""
-    return ModuleWrapPolicy({ScaleManager})
 
 
 class ScaleManager(nn.Module):
@@ -135,8 +128,8 @@ class ModifiedLinear(nn.Module):
         return weight_perturbations, bias_perturbations
 
     def forward(self, x):
-        if not self.activated:
-            return F.linear(x, self.original_weight, self.original_bias)
+        # if not self.activated:
+        #     return F.linear(x, self.original_weight, self.original_bias)
 
         # Dequantize perturbations for computation
         weight_perturbations, bias_perturbations = self._dequantize_perturbations()
@@ -164,9 +157,9 @@ class CompressedFinetuneOnMetaMath(LightningModule):
         pretrained_config: NetworkConfig,
         batch_size: int = 8,
         block_size: int = 256,
-        default_lr: float = 1e-5,
-        compress_batches_every: int = 100,
-        scale_lr: float = 1e-4,
+        default_lr: float = 1e-6,
+        compress_batches_every: int = 1,
+        scale_lr: float = 0,#1e-5,
         grad_accumulation_steps: int = 1
     ):
         super().__init__()
@@ -192,12 +185,79 @@ class CompressedFinetuneOnMetaMath(LightningModule):
         if not self.linear_layers_replaced:
             replace_linear_layers(self.model, self.batch_size, self.grad_accumulation_steps)
             self.linear_layers_replaced = True
-            # Move perturbation tensors to device
+
+            # Setup pipeline parallelism if multiple GPUs are available
+            if torch.cuda.device_count() > 1:
+                self._setup_pipeline_parallelism()
+            else:
+                # Move perturbation tensors to device for single GPU
+                self._move_perturbation_tensors_to_device()
+
+    def _setup_pipeline_parallelism(self):
+        """Setup manual pipeline parallelism by splitting model across all available devices."""
+        # Find the number of transformer layers
+        if hasattr(self.model, 'model') and hasattr(self.model.model, 'layers'):
+            layers = self.model.model.layers
+            num_layers = len(layers)
+            num_gpus = torch.cuda.device_count()
+
+            # Calculate layers per GPU
+            layers_per_gpu = num_layers // num_gpus
+            remainder = num_layers % num_gpus
+
+            print(f"Setting up manual pipeline parallelism across {num_gpus} GPUs")
+            print(f"Total layers: {num_layers}, Base layers per GPU: {layers_per_gpu}")
+
+            # Store split points for reference
+            self._pipeline_split_points = []
+            layer_idx = 0
+
+            # Distribute layers across GPUs
+            for gpu_id in range(num_gpus):
+                # Calculate how many layers this GPU gets
+                layers_for_this_gpu = layers_per_gpu + (1 if gpu_id < remainder else 0)
+                start_layer = layer_idx
+                end_layer = layer_idx + layers_for_this_gpu
+
+                print(f"GPU {gpu_id}: Layers {start_layer}-{end_layer-1} ({layers_for_this_gpu} layers)")
+
+                # Move layers to this GPU
+                for i in range(start_layer, end_layer):
+                    layers[i] = layers[i].to(f'cuda:{gpu_id}')
+
+                # Store split point
+                if gpu_id < num_gpus - 1:  # Not the last GPU
+                    self._pipeline_split_points.append(end_layer)
+
+                layer_idx = end_layer
+
+            # Place embedding and output components
+            # Embedding on first GPU
+            if hasattr(self.model.model, 'embed_tokens'):
+                self.model.model.embed_tokens = self.model.model.embed_tokens.to('cuda:0')
+                print("Embedding on GPU 0")
+
+            # Norm and head on last GPU
+            last_gpu = num_gpus - 1
+            if hasattr(self.model.model, 'norm'):
+                self.model.model.norm = self.model.model.norm.to(f'cuda:{last_gpu}')
+                print(f"Norm on GPU {last_gpu}")
+            if hasattr(self.model, 'lm_head'):
+                self.model.lm_head = self.model.lm_head.to(f'cuda:{last_gpu}')
+                print(f"LM Head on GPU {last_gpu}")
+
+            # Mark as pipeline model
+            self._is_pipeline_model = True
+            self._num_pipeline_gpus = num_gpus
+
+        else:
+            print("Warning: Could not find model layers for pipeline splitting")
             self._move_perturbation_tensors_to_device()
 
     def on_train_start(self):
         """Lightning hook called before training starts - move tensors to device."""
-        self._move_perturbation_tensors_to_device()
+        if self.trainer.num_devices <= 1:
+            self._move_perturbation_tensors_to_device()
 
     def _move_perturbation_tensors_to_device(self):
         """Move perturbation tensors to the same device as model parameters."""
@@ -276,8 +336,8 @@ class CompressedFinetuneOnMetaMath(LightningModule):
         )
 
     def training_step(self, batch, batch_idx):
-        # scale_params = [p for name, p in self.model.named_parameters() if 'scale' in name]
-        # print('scale value', scale_params[0].mean())
+        scale_params = [p for name, p in self.model.named_parameters() if 'scale' in name]
+        print('scale value', scale_params[0].mean())
         # Check if this is a compressed batch step
         steps_since_last_meta_batch = batch_idx % self.compress_batches_every
         is_compressed_step = steps_since_last_meta_batch < self.grad_accumulation_steps
@@ -323,64 +383,60 @@ class CompressedFinetuneOnMetaMath(LightningModule):
         return loss
 
     def compressed_batch(self, batch, accumulation_step=0):
-        device_rank = self.trainer.global_rank if self.trainer else 0
-        world_size = self.trainer.world_size if self.trainer else 1
-
         self._compile_perturbations_into_weights(self.model)
 
-        # Only rank 0 computes perturbations
-        if device_rank == 0:
-            batch_size = batch["input_ids"].size(0)
-            for i in range(batch_size):
-                single_batch = {
-                    'input_ids': batch["input_ids"][i:i+1],
-                    'attention_mask': batch["attention_mask"][i:i+1],
-                    'labels': batch["labels"][i:i+1]
-                }
+        # Each GPU computes perturbations for its own layers
+        batch_size = batch["input_ids"].size(0)
 
-                outputs = self.model(**single_batch)
-                example_loss = outputs.loss
+        loss = 0
+        for i in range(batch_size):
+            single_batch = {
+                'input_ids': batch["input_ids"][i:i+1],
+                'attention_mask': batch["attention_mask"][i:i+1],
+                'labels': batch["labels"][i:i+1]
+            }
 
-                original_params = [p for p in self.model.named_parameters() if  'original' in p[0]]
-                grads = torch.autograd.grad(
-                    example_loss,
-                    [p[1] for p in original_params],
-                    retain_graph=False,
-                    create_graph=False,
-                    allow_unused=False
-                )
+            outputs = self.model(**single_batch)
+            example_loss = outputs.loss
+            loss += example_loss.item() / batch_size
 
-                with torch.no_grad():
-                    for (name, param), grad in zip(original_params, grads):
-                        slot_idx = accumulation_step * self.batch_size + i
+            original_params = [p for p in self.model.named_parameters() if  'original' in p[0]]
+            grads = torch.autograd.grad(
+                example_loss,
+                [p[1] for p in original_params],
+                retain_graph=False,
+                create_graph=False,
+                allow_unused=False
+            )
 
-                        # Find the corresponding ModifiedLinear module
-                        module_path = name.split('.')[:-1]  # Remove 'original_weight' or 'original_bias'
-                        target_module = self.model
-                        for part in module_path:
-                            target_module = getattr(target_module, part)
+            with torch.no_grad():
+                for (name, param), grad in zip(original_params, grads):
+                    slot_idx = accumulation_step * self.batch_size + i
 
-                        if 'original_weight' in name:
-                            # Quantize weight perturbation
-                            quantized, scale, zero_point = target_module._quantize_perturbation(grad.data, slot_idx)
-                            target_module.weight_perturbation_quantized[slot_idx] = quantized
-                            target_module.weight_perturbation_scale[slot_idx] = scale
-                            target_module.weight_perturbation_zero_point[slot_idx] = zero_point
+                    # Find the corresponding ModifiedLinear module
+                    module_path = name.split('.')[:-1]  # Remove 'original_weight' or 'original_bias'
+                    target_module = self.model
+                    for part in module_path:
+                        target_module = getattr(target_module, part)
 
-                        elif 'original_bias' in name:
-                            # Quantize bias perturbation
-                            quantized, scale, zero_point = target_module._quantize_perturbation(grad.data, slot_idx)
-                            target_module.bias_perturbation_quantized[slot_idx] = quantized
-                            target_module.bias_perturbation_scale[slot_idx] = scale
-                            target_module.bias_perturbation_zero_point[slot_idx] = zero_point
+                    if 'original_weight' in name:
+                        # Quantize weight perturbation
+                        quantized, scale, zero_point = target_module._quantize_perturbation(grad.data, slot_idx)
+                        target_module.weight_perturbation_quantized[slot_idx] = quantized
+                        target_module.weight_perturbation_scale[slot_idx] = scale
+                        target_module.weight_perturbation_zero_point[slot_idx] = zero_point
 
-        # Broadcast perturbations from rank 0 to all devices
-        if world_size > 1:
-            # Synchronize all ranks before broadcasting
-            dist.barrier()
-            self._broadcast_perturbations()
+                    elif 'original_bias' in name:
+                        # Quantize bias perturbation
+                        quantized, scale, zero_point = target_module._quantize_perturbation(grad.data, slot_idx)
+                        target_module.bias_perturbation_quantized[slot_idx] = quantized
+                        target_module.bias_perturbation_scale[slot_idx] = scale
+                        target_module.bias_perturbation_zero_point[slot_idx] = zero_point
 
+        # With pipeline parallelism, each GPU handles its own layers independently
+        # No need for broadcasting perturbations
         self._initialize_scale_parameters()
+        self.log("train/loss", loss, on_step=True, on_epoch=False, prog_bar=True)
 
     def _initialize_scale_parameters(self):
         """Initialize scale parameters on each rank's shard."""
@@ -389,20 +445,6 @@ class CompressedFinetuneOnMetaMath(LightningModule):
                 with torch.no_grad():
                     child.scale_manager.scale.data.fill_(self.default_lr)
 
-    def _broadcast_perturbations(self):
-        """Broadcast perturbation tensors from rank 0 to all devices."""
-
-        # Only broadcast perturbation tensors (let FSDP handle scale parameters)
-        for child in self.model.modules():
-            if isinstance(child, ModifiedLinear):
-                dist.broadcast(child.weight_perturbation_quantized, src=0)
-                dist.broadcast(child.weight_perturbation_scale, src=0)
-                dist.broadcast(child.weight_perturbation_zero_point, src=0)
-
-                if child.original_bias is not None:
-                    dist.broadcast(child.bias_perturbation_quantized, src=0)
-                    dist.broadcast(child.bias_perturbation_scale, src=0)
-                    dist.broadcast(child.bias_perturbation_zero_point, src=0)
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-4)
