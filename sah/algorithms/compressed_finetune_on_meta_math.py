@@ -5,11 +5,24 @@ import torch.nn.functional as F
 from datasets import load_dataset
 from lightning import LightningModule
 from torch import nn
+from torch.distributed.fsdp.wrap import ModuleWrapPolicy
 from torch.utils.data import DataLoader, Dataset
 from transformers import DataCollatorForLanguageModeling
 
 from sah.algorithms.formatters import get_dataset_formatter
 from sah.algorithms.llm_finetuning import NetworkConfig, TokenizerConfig
+
+
+def get_scale_manager_wrap_policy():
+    """Return FSDP auto wrap policy for ScaleManager modules only."""
+    return ModuleWrapPolicy({ScaleManager})
+
+
+class ScaleManager(nn.Module):
+    """Dedicated module for managing scale parameters that can be FSDP-wrapped."""
+    def __init__(self, batch_size, grad_accumulation_steps):
+        super().__init__()
+        self.scale = nn.Parameter(torch.zeros(batch_size * grad_accumulation_steps), requires_grad=True)
 
 
 class MetaMath(Dataset):
@@ -68,7 +81,8 @@ class ModifiedLinear(nn.Module):
         self.register_buffer('weight_perturbation_scale', torch.ones(batch_size * grad_accumulation_steps, dtype=torch.float32))
         self.register_buffer('weight_perturbation_zero_point', torch.zeros(batch_size * grad_accumulation_steps, dtype=torch.uint8))
 
-        self.scale = nn.Parameter(torch.zeros(batch_size * grad_accumulation_steps), requires_grad=True)
+        # Use ScaleManager for FSDP-wrapped scale parameters
+        self.scale_manager = ScaleManager(batch_size, grad_accumulation_steps)
 
         if self.original_bias is not None:
             self.register_buffer('bias_perturbation_quantized', torch.zeros(batch_size * grad_accumulation_steps, *self.original_bias.shape, dtype=torch.uint8))
@@ -127,10 +141,10 @@ class ModifiedLinear(nn.Module):
         # Dequantize perturbations for computation
         weight_perturbations, bias_perturbations = self._dequantize_perturbations()
 
-        weight = self.original_weight + torch.einsum('i,ijk->jk', self.scale, weight_perturbations)
+        weight = self.original_weight + torch.einsum('i,ijk->jk', self.scale_manager.scale, weight_perturbations)
         bias = None
         if self.original_bias is not None:
-            bias = self.original_bias + torch.einsum('i,ij->j', self.scale, bias_perturbations)
+            bias = self.original_bias + torch.einsum('i,ij->j', self.scale_manager.scale, bias_perturbations)
 
         return F.linear(x, weight, bias)
 
@@ -152,7 +166,7 @@ class CompressedFinetuneOnMetaMath(LightningModule):
         block_size: int = 256,
         default_lr: float = 1e-4,
         compress_batches_every: int = 100,
-        scale_lr: float = 1e-3,
+        scale_lr: float = 1e-4,
         grad_accumulation_steps: int = 1
     ):
         super().__init__()
@@ -195,18 +209,18 @@ class CompressedFinetuneOnMetaMath(LightningModule):
                     # Dequantize perturbations before compiling
                     weight_perturbations, bias_perturbations = child._dequantize_perturbations()
 
-                    compiled_weight_update = torch.einsum('i,ijk->jk', child.scale, weight_perturbations)
+                    compiled_weight_update = torch.einsum('i,ijk->jk', child.scale_manager.scale, weight_perturbations)
                     child.original_weight.data += compiled_weight_update
 
                     if child.original_bias is not None:
-                        compiled_bias_update = torch.einsum('i,ij->j', child.scale, bias_perturbations)
+                        compiled_bias_update = torch.einsum('i,ij->j', child.scale_manager.scale, bias_perturbations)
                         child.original_bias.data += compiled_bias_update
 
                     # Reset quantized perturbations (buffers)
                     child.weight_perturbation_quantized.zero_()
                     child.weight_perturbation_scale.fill_(1.0)
                     child.weight_perturbation_zero_point.zero_()
-                    child.scale = nn.Parameter(torch.zeros_like(child.scale))
+                    child.scale_manager.scale.data.zero_()
 
                     if child.original_bias is not None:
                         child.bias_perturbation_quantized.zero_()
@@ -242,6 +256,9 @@ class CompressedFinetuneOnMetaMath(LightningModule):
         )
 
     def training_step(self, batch, batch_idx):
+        scale_params = [p for name, p in self.model.named_parameters() if 'scale' in name]
+        print('scale value', scale_params[0].mean())
+        # breakpoint()
         # Check if this is a compressed batch step
         steps_since_last_meta_batch = batch_idx % self.compress_batches_every
         is_compressed_step = steps_since_last_meta_batch < self.grad_accumulation_steps
@@ -338,10 +355,9 @@ class CompressedFinetuneOnMetaMath(LightningModule):
                             target_module.bias_perturbation_scale[slot_idx] = scale
                             target_module.bias_perturbation_zero_point[slot_idx] = zero_point
 
-                        # Set scale parameter
-                        scale_name = name.replace('original_weight', 'scale').replace('original_bias', 'scale')
-                        scale_param = dict(self.model.named_parameters())[scale_name]
-                        scale_param.data[slot_idx].copy_(self.default_lr)
+                        # Set scale parameter via ScaleManager
+                        with torch.no_grad():
+                            target_module.scale_manager.scale.data[slot_idx] = self.default_lr
 
         # Broadcast perturbations from rank 0 to all devices
         if world_size > 1:
