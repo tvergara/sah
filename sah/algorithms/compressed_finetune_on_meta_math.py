@@ -78,7 +78,7 @@ class ModifiedLinear(nn.Module):
         self.activated = False
 
     def _quantize_perturbation(self, perturbation_tensor, slot_idx):
-        """Quantize a perturbation tensor using int4 quantization."""
+        """Quantize a perturbation tensor using int8 quantization."""
         # Calculate scale and zero point for the perturbation
         min_val = perturbation_tensor.min()
         max_val = perturbation_tensor.max()
@@ -88,13 +88,13 @@ class ModifiedLinear(nn.Module):
             scale = 1.0
             zero_point = 0
         else:
-            scale = (max_val - min_val) / 15.0  # 4-bit: 2^4 - 1 = 15
+            scale = (max_val - min_val) / 255.0  # 8-bit: 2^8 - 1 = 255
             zero_point = min_val
 
-        # Quantize to 4-bit (stored as uint8)
+        # Quantize to 8-bit
         quantized = torch.clamp(
             torch.round((perturbation_tensor - zero_point) / scale),
-            0, 15
+            0, 255
         ).to(torch.uint8)
 
         return quantized, scale, zero_point
