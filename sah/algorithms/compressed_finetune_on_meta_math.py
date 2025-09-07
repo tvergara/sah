@@ -76,18 +76,18 @@ class ModifiedLinear(nn.Module):
         else:
             self.original_bias = None
 
-        # Store quantized perturbations as buffers (not parameters)
-        self.register_buffer('weight_perturbation_quantized', torch.zeros(batch_size * grad_accumulation_steps, *self.original_weight.shape, dtype=torch.uint8))
-        self.register_buffer('weight_perturbation_scale', torch.ones(batch_size * grad_accumulation_steps, dtype=torch.float32))
-        self.register_buffer('weight_perturbation_zero_point', torch.zeros(batch_size * grad_accumulation_steps, dtype=torch.uint8))
+        # Store quantized perturbations as regular tensors (not parameters or buffers)
+        self.weight_perturbation_quantized = torch.zeros(batch_size * grad_accumulation_steps, *self.original_weight.shape, dtype=torch.uint8)
+        self.weight_perturbation_scale = torch.ones(batch_size * grad_accumulation_steps, dtype=torch.float32)
+        self.weight_perturbation_zero_point = torch.zeros(batch_size * grad_accumulation_steps, dtype=torch.uint8)
 
         # Use ScaleManager for FSDP-wrapped scale parameters
         self.scale_manager = ScaleManager(batch_size, grad_accumulation_steps)
 
         if self.original_bias is not None:
-            self.register_buffer('bias_perturbation_quantized', torch.zeros(batch_size * grad_accumulation_steps, *self.original_bias.shape, dtype=torch.uint8))
-            self.register_buffer('bias_perturbation_scale', torch.ones(batch_size * grad_accumulation_steps, dtype=torch.float32))
-            self.register_buffer('bias_perturbation_zero_point', torch.zeros(batch_size * grad_accumulation_steps, dtype=torch.uint8))
+            self.bias_perturbation_quantized = torch.zeros(batch_size * grad_accumulation_steps, *self.original_bias.shape, dtype=torch.uint8)
+            self.bias_perturbation_scale = torch.ones(batch_size * grad_accumulation_steps, dtype=torch.float32)
+            self.bias_perturbation_zero_point = torch.zeros(batch_size * grad_accumulation_steps, dtype=torch.uint8)
 
         self.activated = False
 
@@ -164,7 +164,7 @@ class CompressedFinetuneOnMetaMath(LightningModule):
         pretrained_config: NetworkConfig,
         batch_size: int = 8,
         block_size: int = 256,
-        default_lr: float = 1e-4,
+        default_lr: float = 1e-5,
         compress_batches_every: int = 100,
         scale_lr: float = 1e-4,
         grad_accumulation_steps: int = 1
@@ -192,6 +192,26 @@ class CompressedFinetuneOnMetaMath(LightningModule):
         if not self.linear_layers_replaced:
             replace_linear_layers(self.model, self.batch_size, self.grad_accumulation_steps)
             self.linear_layers_replaced = True
+            # Move perturbation tensors to device
+            self._move_perturbation_tensors_to_device()
+
+    def on_train_start(self):
+        """Lightning hook called before training starts - move tensors to device."""
+        self._move_perturbation_tensors_to_device()
+
+    def _move_perturbation_tensors_to_device(self):
+        """Move perturbation tensors to the same device as model parameters."""
+        device = next(self.model.parameters()).device
+        for child in self.model.modules():
+            if isinstance(child, ModifiedLinear):
+                child.weight_perturbation_quantized = child.weight_perturbation_quantized.to(device)
+                child.weight_perturbation_scale = child.weight_perturbation_scale.to(device)
+                child.weight_perturbation_zero_point = child.weight_perturbation_zero_point.to(device)
+
+                if child.original_bias is not None:
+                    child.bias_perturbation_quantized = child.bias_perturbation_quantized.to(device)
+                    child.bias_perturbation_scale = child.bias_perturbation_scale.to(device)
+                    child.bias_perturbation_zero_point = child.bias_perturbation_zero_point.to(device)
 
     def _set_modified_linear_activated(self, module, activated):
         """Recursively set activated flag for all ModifiedLinear layers."""
@@ -256,9 +276,8 @@ class CompressedFinetuneOnMetaMath(LightningModule):
         )
 
     def training_step(self, batch, batch_idx):
-        scale_params = [p for name, p in self.model.named_parameters() if 'scale' in name]
-        print('scale value', scale_params[0].mean())
-        # breakpoint()
+        # scale_params = [p for name, p in self.model.named_parameters() if 'scale' in name]
+        # print('scale value', scale_params[0].mean())
         # Check if this is a compressed batch step
         steps_since_last_meta_batch = batch_idx % self.compress_batches_every
         is_compressed_step = steps_since_last_meta_batch < self.grad_accumulation_steps
@@ -355,25 +374,35 @@ class CompressedFinetuneOnMetaMath(LightningModule):
                             target_module.bias_perturbation_scale[slot_idx] = scale
                             target_module.bias_perturbation_zero_point[slot_idx] = zero_point
 
-                        # Set scale parameter via ScaleManager
-                        with torch.no_grad():
-                            target_module.scale_manager.scale.data[slot_idx] = self.default_lr
-
         # Broadcast perturbations from rank 0 to all devices
         if world_size > 1:
+            # Synchronize all ranks before broadcasting
+            dist.barrier()
             self._broadcast_perturbations()
 
-    def _broadcast_perturbations(self):
-        """Broadcast perturbation parameters and buffers from rank 0 to all devices."""
-        # Broadcast scale parameters
-        for name, param in self.model.named_parameters():
-            if 'scale' in name and 'perturbation' not in name:
-                dist.broadcast(param.data, src=0)
+        self._initialize_scale_parameters()
 
-        # Broadcast quantized perturbation buffers
-        for name, buffer in self.model.named_buffers():
-            if ('weight_perturbation' in name or 'bias_perturbation' in name):
-                dist.broadcast(buffer, src=0)
+    def _initialize_scale_parameters(self):
+        """Initialize scale parameters on each rank's shard."""
+        for child in self.model.modules():
+            if isinstance(child, ModifiedLinear):
+                with torch.no_grad():
+                    child.scale_manager.scale.data.fill_(self.default_lr)
+
+    def _broadcast_perturbations(self):
+        """Broadcast perturbation tensors from rank 0 to all devices."""
+
+        # Only broadcast perturbation tensors (let FSDP handle scale parameters)
+        for child in self.model.modules():
+            if isinstance(child, ModifiedLinear):
+                dist.broadcast(child.weight_perturbation_quantized, src=0)
+                dist.broadcast(child.weight_perturbation_scale, src=0)
+                dist.broadcast(child.weight_perturbation_zero_point, src=0)
+
+                if child.original_bias is not None:
+                    dist.broadcast(child.bias_perturbation_quantized, src=0)
+                    dist.broadcast(child.bias_perturbation_scale, src=0)
+                    dist.broadcast(child.bias_perturbation_zero_point, src=0)
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-4)
