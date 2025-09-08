@@ -69,75 +69,27 @@ class ModifiedLinear(nn.Module):
         else:
             self.original_bias = None
 
-        # Store quantized perturbations as regular tensors (not parameters or buffers)
-        self.weight_perturbation_quantized = torch.zeros(batch_size * grad_accumulation_steps, *self.original_weight.shape, dtype=torch.uint8)
-        self.weight_perturbation_scale = torch.ones(batch_size * grad_accumulation_steps, dtype=torch.float32)
-        self.weight_perturbation_zero_point = torch.zeros(batch_size * grad_accumulation_steps, dtype=torch.uint8)
+        # Store perturbations as float16 tensors (not parameters or buffers)
+        self.weight_perturbations = torch.zeros(batch_size * grad_accumulation_steps, *self.original_weight.shape, dtype=torch.float16)
 
         # Use ScaleManager for FSDP-wrapped scale parameters
         self.scale_manager = ScaleManager(batch_size, grad_accumulation_steps)
 
         if self.original_bias is not None:
-            self.bias_perturbation_quantized = torch.zeros(batch_size * grad_accumulation_steps, *self.original_bias.shape, dtype=torch.uint8)
-            self.bias_perturbation_scale = torch.ones(batch_size * grad_accumulation_steps, dtype=torch.float32)
-            self.bias_perturbation_zero_point = torch.zeros(batch_size * grad_accumulation_steps, dtype=torch.uint8)
+            self.bias_perturbations = torch.zeros(batch_size * grad_accumulation_steps, *self.original_bias.shape, dtype=torch.float16)
 
         self.activated = False
 
-    def _quantize_perturbation(self, perturbation_tensor, slot_idx):
-        """Quantize a perturbation tensor using int8 quantization."""
-        # Calculate scale and zero point for the perturbation
-        min_val = perturbation_tensor.min()
-        max_val = perturbation_tensor.max()
-
-        # Avoid division by zero
-        if max_val == min_val:
-            scale = 1.0
-            zero_point = 0
-        else:
-            scale = (max_val - min_val) / 255.0  # 8-bit: 2^8 - 1 = 255
-            zero_point = min_val
-
-        # Quantize to 8-bit
-        quantized = torch.clamp(
-            torch.round((perturbation_tensor - zero_point) / scale),
-            0, 255
-        ).to(torch.uint8)
-
-        return quantized, scale, zero_point
-
-    def _dequantize_perturbations(self):
-        """Dequantize weight and bias perturbations."""
-        # Dequantize weight perturbations
-        weight_perturbations = torch.zeros_like(self.weight_perturbation_quantized, dtype=torch.float32)
-        for i in range(self.weight_perturbation_quantized.shape[0]):
-            weight_perturbations[i] = (
-                self.weight_perturbation_quantized[i].float() * self.weight_perturbation_scale[i] +
-                self.weight_perturbation_zero_point[i].float()
-            )
-
-        bias_perturbations = None
-        if self.original_bias is not None:
-            bias_perturbations = torch.zeros_like(self.bias_perturbation_quantized, dtype=torch.float32)
-            for i in range(self.bias_perturbation_quantized.shape[0]):
-                bias_perturbations[i] = (
-                    self.bias_perturbation_quantized[i].float() * self.bias_perturbation_scale[i] +
-                    self.bias_perturbation_zero_point[i].float()
-                )
-
-        return weight_perturbations, bias_perturbations
 
     def forward(self, x):
         # if not self.activated:
         #     return F.linear(x, self.original_weight, self.original_bias)
 
-        # Dequantize perturbations for computation
-        weight_perturbations, bias_perturbations = self._dequantize_perturbations()
-
-        weight = self.original_weight + torch.einsum('i,ijk->jk', self.scale_manager.scale, weight_perturbations)
+        # Use perturbations directly (no quantization)
+        weight = self.original_weight + torch.einsum('i,ijk->jk', self.scale_manager.scale, self.weight_perturbations.float())
         bias = None
         if self.original_bias is not None:
-            bias = self.original_bias + torch.einsum('i,ij->j', self.scale_manager.scale, bias_perturbations)
+            bias = self.original_bias + torch.einsum('i,ij->j', self.scale_manager.scale, self.bias_perturbations.float())
 
         return F.linear(x, weight, bias)
 
@@ -157,9 +109,9 @@ class CompressedFinetuneOnMetaMath(LightningModule):
         pretrained_config: NetworkConfig,
         batch_size: int = 8,
         block_size: int = 256,
-        default_lr: float = 1e-6,
-        compress_batches_every: int = 1,
-        scale_lr: float = 0,#1e-5,
+        default_lr: float = 1e-5,
+        compress_batches_every: int = 20,
+        scale_lr: float = 1e-5,
         grad_accumulation_steps: int = 1
     ):
         super().__init__()
@@ -264,14 +216,10 @@ class CompressedFinetuneOnMetaMath(LightningModule):
         device = next(self.model.parameters()).device
         for child in self.model.modules():
             if isinstance(child, ModifiedLinear):
-                child.weight_perturbation_quantized = child.weight_perturbation_quantized.to(device)
-                child.weight_perturbation_scale = child.weight_perturbation_scale.to(device)
-                child.weight_perturbation_zero_point = child.weight_perturbation_zero_point.to(device)
+                child.weight_perturbations = child.weight_perturbations.to(device)
 
                 if child.original_bias is not None:
-                    child.bias_perturbation_quantized = child.bias_perturbation_quantized.to(device)
-                    child.bias_perturbation_scale = child.bias_perturbation_scale.to(device)
-                    child.bias_perturbation_zero_point = child.bias_perturbation_zero_point.to(device)
+                    child.bias_perturbations = child.bias_perturbations.to(device)
 
     def _set_modified_linear_activated(self, module, activated):
         """Recursively set activated flag for all ModifiedLinear layers."""
@@ -286,26 +234,20 @@ class CompressedFinetuneOnMetaMath(LightningModule):
         for child in module.children():
             if isinstance(child, ModifiedLinear):
                 with torch.no_grad():
-                    # Dequantize perturbations before compiling
-                    weight_perturbations, bias_perturbations = child._dequantize_perturbations()
-
-                    compiled_weight_update = torch.einsum('i,ijk->jk', child.scale_manager.scale, weight_perturbations)
+                    # Use perturbations directly (no dequantization needed)
+                    compiled_weight_update = torch.einsum('i,ijk->jk', child.scale_manager.scale, child.weight_perturbations.float())
                     child.original_weight.data += compiled_weight_update
 
                     if child.original_bias is not None:
-                        compiled_bias_update = torch.einsum('i,ij->j', child.scale_manager.scale, bias_perturbations)
+                        compiled_bias_update = torch.einsum('i,ij->j', child.scale_manager.scale, child.bias_perturbations.float())
                         child.original_bias.data += compiled_bias_update
 
-                    # Reset quantized perturbations (buffers)
-                    child.weight_perturbation_quantized.zero_()
-                    child.weight_perturbation_scale.fill_(1.0)
-                    child.weight_perturbation_zero_point.zero_()
+                    # Reset perturbations
+                    child.weight_perturbations.zero_()
                     child.scale_manager.scale.data.zero_()
 
                     if child.original_bias is not None:
-                        child.bias_perturbation_quantized.zero_()
-                        child.bias_perturbation_scale.fill_(1.0)
-                        child.bias_perturbation_zero_point.zero_()
+                        child.bias_perturbations.zero_()
             else:
                 self._compile_perturbations_into_weights(child)
 
@@ -420,18 +362,12 @@ class CompressedFinetuneOnMetaMath(LightningModule):
                         target_module = getattr(target_module, part)
 
                     if 'original_weight' in name:
-                        # Quantize weight perturbation
-                        quantized, scale, zero_point = target_module._quantize_perturbation(grad.data, slot_idx)
-                        target_module.weight_perturbation_quantized[slot_idx] = quantized
-                        target_module.weight_perturbation_scale[slot_idx] = scale
-                        target_module.weight_perturbation_zero_point[slot_idx] = zero_point
+                        # Store weight perturbation directly as float16
+                        target_module.weight_perturbations[slot_idx] = grad.data.to(torch.float16)
 
                     elif 'original_bias' in name:
-                        # Quantize bias perturbation
-                        quantized, scale, zero_point = target_module._quantize_perturbation(grad.data, slot_idx)
-                        target_module.bias_perturbation_quantized[slot_idx] = quantized
-                        target_module.bias_perturbation_scale[slot_idx] = scale
-                        target_module.bias_perturbation_zero_point[slot_idx] = zero_point
+                        # Store bias perturbation directly as float16
+                        target_module.bias_perturbations[slot_idx] = grad.data.to(torch.float16)
 
         # With pipeline parallelism, each GPU handles its own layers independently
         # No need for broadcasting perturbations
@@ -443,7 +379,7 @@ class CompressedFinetuneOnMetaMath(LightningModule):
         for child in self.model.modules():
             if isinstance(child, ModifiedLinear):
                 with torch.no_grad():
-                    child.scale_manager.scale.data.fill_(self.default_lr)
+                    child.scale_manager.scale.data.fill_(-self.default_lr)
 
 
     def configure_optimizers(self):
