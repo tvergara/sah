@@ -1,8 +1,11 @@
+import os
+
 import hydra_zen
 import torch
 import torch.nn.functional as F
 from datasets import load_dataset
 from lightning import LightningModule
+from lightning.pytorch.callbacks import ModelCheckpoint
 from torch import nn
 from torch.utils.data import DataLoader, Dataset
 from transformers import DataCollatorForLanguageModeling
@@ -24,7 +27,7 @@ class MetaMath(Dataset):
         self.block_size = block_size
 
         print("Loading MetaMathQA dataset...")
-        raw_dataset = load_dataset("meta-math/MetaMathQA", split="train[:20000]")
+        raw_dataset = load_dataset("meta-math/MetaMathQA", split="train[:40000]")
         print(f"Dataset loaded: {len(raw_dataset)} examples")
         formatter = get_dataset_formatter("meta-math/MetaMathQA")
 
@@ -108,10 +111,10 @@ class CompressedFinetuneOnMetaMath(LightningModule):
         tokenizer_config: TokenizerConfig,
         pretrained_config: NetworkConfig,
         batch_size: int = 8,
-        block_size: int = 256,
+        block_size: int = 512,
         default_lr: float = 1e-5,
-        compress_batches_every: int = 20,
-        scale_lr: float = 1e-5,
+        compress_batches_every: int = 1,#20,
+        scale_lr: float = 0,#1e-5,
         grad_accumulation_steps: int = 1
     ):
         super().__init__()
@@ -279,7 +282,6 @@ class CompressedFinetuneOnMetaMath(LightningModule):
 
     def training_step(self, batch, batch_idx):
         scale_params = [p for name, p in self.model.named_parameters() if 'scale' in name]
-        print('scale value', scale_params[0].mean())
         # Check if this is a compressed batch step
         steps_since_last_meta_batch = batch_idx % self.compress_batches_every
         is_compressed_step = steps_since_last_meta_batch < self.grad_accumulation_steps
@@ -319,6 +321,7 @@ class CompressedFinetuneOnMetaMath(LightningModule):
         if self.grad_accumulation_counter % self.grad_accumulation_steps == 0:
             self.scale_optimizer.step()
             self.scale_optimizer.zero_grad()
+            # self.trainer.global_step += 1
             self.grad_accumulation_counter = 0
 
         self.log("train/loss", loss, on_step=True, on_epoch=False, prog_bar=True)
@@ -383,5 +386,20 @@ class CompressedFinetuneOnMetaMath(LightningModule):
 
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=1e-4)
-        return optimizer
+        pass
+
+    def on_train_batch_end(self, outputs, batch, batch_idx=None):
+        checkpoint_callback = None
+        for callback in self.trainer.callbacks:
+            if isinstance(callback, ModelCheckpoint):
+                checkpoint_callback = callback
+                break
+
+        if checkpoint_callback is None:
+            return
+
+        save_every = checkpoint_callback._every_n_train_steps
+        if save_every > 0 and (batch_idx + 1) % save_every == 0:
+            os.makedirs(checkpoint_callback.dirpath, exist_ok=True)
+            filepath = os.path.join(checkpoint_callback.dirpath, "last.ckpt")
+            self.trainer.save_checkpoint(filepath)

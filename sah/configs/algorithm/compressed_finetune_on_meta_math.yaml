@@ -11,5 +11,5 @@ pretrained_config:
   _recursive_: false
   _convert_: object
   pretrained_model_name_or_path: Qwen/Qwen2.5-1.5B
-batch_size: 2
-grad_accumulation_steps: 3
+batch_size: 1
+grad_accumulation_steps: 4

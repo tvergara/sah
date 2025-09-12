@@ -13,7 +13,8 @@ def load_weights_from_checkpoint(model, path, model_name='network'):
 
     new_state_dict = OrderedDict()
     for k, v in state_dict.items():
-        if k.startswith(f"{model_name}."):
+        if k.startswith(f"{model_name}.") and 'scale_manager' not in k:
+            k = k.replace('original_weight', 'weight').replace('original_bias', 'bias')
             name = k[len(model_name) + 1:]
             new_state_dict[name] = v
 
