@@ -25,6 +25,9 @@ class FinetuneWithStrategy(LightningModule):
         self.dataset = ProcessedDataset(self.tokenizer, dataset_name, max_examples=max_examples)
         self.strategy = strategy
 
+    def setup(self, stage):
+        self.strategy.setup(self, stage)
+
     def training_step(self, batch, batch_idx):
         return self.strategy.training_step(self, batch, batch_idx)
 
