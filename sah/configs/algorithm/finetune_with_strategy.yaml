@@ -11,5 +11,10 @@ model_config:
   _recursive_: false
   _convert_: object
   pretrained_model_name_or_path: Qwen/Qwen2.5-1.5B
+strategy:
+  _target_: sah.algorithms.strategies.adam.AdamStrategy
+  _recursive_: false
+  _convert_: object
+  lr: 0.001
 dataset_name: meta-math/MetaMathQA
 max_examples: 1000
