@@ -6,11 +6,14 @@ from sah.algorithms.strategies.base_strategy import BaseStrategy
 
 
 class CompressedFinetuneStrategy(BaseStrategy):
-    def __init__(self, lr, grad_accumulation_steps, compress_batches_every):
+    def __init__(self, lr, scale_lr, grad_accumulation_steps, compress_batches_every):
         super().__init__()
         self.lr = lr
+        self.scale_lr = scale_lr
         self.grad_accumulation_steps = grad_accumulation_steps
         self.compress_batches_every = compress_batches_every
+        self.scale_optimizer = None
+        self.grad_accumulation_counter = 0
 
     def setup(self, pl_module, stage):
         if stage == "fit":
@@ -23,11 +26,40 @@ class CompressedFinetuneStrategy(BaseStrategy):
     def training_step(self, pl_module, batch, batch_idx):
         steps_since_last_meta_batch = batch_idx % self.compress_batches_every
         is_compressed_step = steps_since_last_meta_batch < self.grad_accumulation_steps
-        if is_compressed_step:
-            return
 
+        if is_compressed_step:
+            self.compressed_batch(pl_module, batch, steps_since_last_meta_batch)
+
+            if steps_since_last_meta_batch == self.grad_accumulation_steps - 1:
+                self._setup_scale_optimizer(pl_module)
+            return None
+
+        return self._optimize_scales(pl_module, batch)
+
+    def _setup_scale_optimizer(self, pl_module):
+        scale_params = [p for n, p in pl_module.model.named_parameters() if 'scale' in n]
+        self.scale_optimizer = torch.optim.Adam(scale_params, lr=self.scale_lr)
+
+    def _optimize_scales(self, pl_module, batch):
         outputs = pl_module.model(**batch)
         loss = outputs.loss
+
+        scale_params = [p for n, p in pl_module.model.named_parameters() if 'scale' in n]
+        grads = torch.autograd.grad(loss, scale_params, retain_graph=False)
+
+        for param, grad in zip(scale_params, grads):
+            if param.grad is None:
+                param.grad = grad / self.grad_accumulation_steps
+            else:
+                param.grad += grad / self.grad_accumulation_steps
+
+        self.grad_accumulation_counter += 1
+
+        if self.grad_accumulation_counter % self.grad_accumulation_steps == 0:
+            self.scale_optimizer.step()
+            self.scale_optimizer.zero_grad()
+            self.grad_accumulation_counter = 0
+
         pl_module.log("train/loss", loss, on_step=True, on_epoch=False, prog_bar=True)
         return loss
 
@@ -44,20 +76,22 @@ class CompressedFinetuneStrategy(BaseStrategy):
             loss = outputs.loss
             total_loss += loss.item()
 
-            original_params = [p for n, p in pl_module.model.named_parameters() if 'original' in n]
-            grads = torch.autograd.grad(loss, original_params, retain_graph=False)
+            original_params_dict = {n: p for n, p in pl_module.model.named_parameters() if 'original' in n}
+            grads = torch.autograd.grad(loss, list(original_params_dict.values()), retain_graph=False)
+            grad_dict = dict(zip(original_params_dict.keys(), grads))
 
             slot_idx = accumulation_step * pl_module.batch_size + i
-            param_idx = 0
 
-            for module in pl_module.model.modules():
+            for name, module in pl_module.model.named_modules():
                 if isinstance(module, ModifiedLinear):
-                    module.weight_perturbations[slot_idx] = grads[param_idx].data.to(torch.float16)
-                    param_idx += 1
+                    weight_key = f"{name}.original_weight"
+                    if weight_key in grad_dict:
+                        module.weight_perturbations[slot_idx] = grad_dict[weight_key].data.to(torch.float16)
 
                     if module.original_bias is not None:
-                        module.bias_perturbations[slot_idx] = grads[param_idx].data.to(torch.float16)
-                        param_idx += 1
+                        bias_key = f"{name}.original_bias"
+                        if bias_key in grad_dict:
+                            module.bias_perturbations[slot_idx] = grad_dict[bias_key].data.to(torch.float16)
 
         initialize_scale_parameters(pl_module, self.lr)
 
