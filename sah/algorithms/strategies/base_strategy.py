@@ -5,6 +5,9 @@ class BaseStrategy:
     def setup(self, pl_module, stage):
         pass
 
+    def on_train_start(self, pl_module):
+        pass
+
     def training_step(self, pl_module, batch, batch_idx):
         outputs = pl_module.model(**batch)
         loss = outputs.loss

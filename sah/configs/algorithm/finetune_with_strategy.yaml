@@ -12,11 +12,19 @@ model_config:
   _convert_: object
   pretrained_model_name_or_path: Qwen/Qwen2.5-1.5B
 strategy:
-  _target_: sah.algorithms.strategies.lora.LoRAStrategy
+  _target_: sah.algorithms.strategies.compressed_finetune.CompressedFinetuneStrategy
   _recursive_: false
   _convert_: object
   lr: 0.001
-  lora_alpha: 8
-  lora_dropout: 0.0
+  grad_accumulation_steps: 1
+  compress_batches_every: 3
+# strategy:
+#   _target_: sah.algorithms.strategies.lora.LoRAStrategy
+#   _recursive_: false
+#   _convert_: object
+#   lr: 0.001
+#   lora_alpha: 8
+#   lora_dropout: 0.0
 dataset_name: meta-math/MetaMathQA
 max_examples: 1000
+batch_size: 1
