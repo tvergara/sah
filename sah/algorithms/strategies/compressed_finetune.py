@@ -17,7 +17,8 @@ class CompressedFinetuneStrategy(BaseStrategy):
 
     def setup(self, pl_module, stage):
         if stage == "fit":
-            replace_linear_layers(pl_module.model, pl_module.batch_size)
+            total_slots = pl_module.batch_size * self.grad_accumulation_steps
+            replace_linear_layers(pl_module.model, total_slots)
             pl_module.automatic_optimization = False
 
     def on_train_start(self, pl_module):
@@ -80,7 +81,7 @@ class CompressedFinetuneStrategy(BaseStrategy):
             grads = torch.autograd.grad(loss, list(original_params_dict.values()), retain_graph=False)
             grad_dict = dict(zip(original_params_dict.keys(), grads))
 
-            slot_idx = accumulation_step * pl_module.batch_size + i
+            slot_idx = accumulation_step * batch_size + i
 
             for name, module in pl_module.model.named_modules():
                 if isinstance(module, ModifiedLinear):
