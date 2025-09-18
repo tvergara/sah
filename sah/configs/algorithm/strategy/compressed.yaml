@@ -1,0 +1,7 @@
+_target_: sah.algorithms.strategies.compressed_finetune.CompressedFinetuneStrategy
+_recursive_: false
+_convert_: object
+lr: 1e-5
+grad_accumulation_steps: 6
+compress_batches_every: 20
+scale_lr: 1e-5
