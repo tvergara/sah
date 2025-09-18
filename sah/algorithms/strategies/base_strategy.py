@@ -16,3 +16,6 @@ class BaseStrategy:
 
     def configure_optimizers(self, pl_module):
         return None
+
+    def on_train_batch_end(self, pl_module, outputs, batch, batch_idx):
+        pass

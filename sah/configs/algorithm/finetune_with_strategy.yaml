@@ -14,5 +14,5 @@ model_config:
 defaults:
   - strategy: compressed
 dataset_name: meta-math/MetaMathQA
-max_examples: 10000
+max_examples: null
 batch_size: 1

@@ -1,0 +1,15 @@
+# @package _global_
+
+defaults:
+  - finetune-with-strategy
+  - override /algorithm/strategy: lora
+
+trainer:
+  callbacks:
+    model_checkpoint:
+      filename: lora
+
+algorithm:
+  batch_size: 6
+
+name: finetune-with-strategy-lora

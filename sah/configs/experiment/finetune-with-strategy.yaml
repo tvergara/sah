@@ -14,11 +14,11 @@ trainer:
   callbacks:
     model_checkpoint:
       save_top_k: -1
-      save_last: true
-      every_n_train_steps: 200
+      save_last: false
+      every_n_train_steps: 400
+      filename: last
     throughput: null
   strategy: auto
   devices: 1
 
 name: finetune-with-strategy
-ckpt_path: last

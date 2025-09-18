@@ -50,3 +50,6 @@ class FinetuneWithStrategy(LightningModule):
 
     def configure_optimizers(self):
         return self.strategy.configure_optimizers(self)
+
+    def on_train_batch_end(self, outputs, batch, batch_idx):
+        self.strategy.on_train_batch_end(self, outputs, batch, batch_idx)

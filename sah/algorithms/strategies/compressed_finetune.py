@@ -22,7 +22,6 @@ class CompressedFinetuneStrategy(BaseStrategy):
             pl_module.automatic_optimization = False
 
     def _split_model_across_gpus(self, pl_module):
-        """Manual pipeline parallelism by splitting layers across GPUs."""
         num_gpus = torch.cuda.device_count()
         layers = pl_module.model.model.layers
         layers_per_gpu = len(layers) // num_gpus
@@ -124,6 +123,17 @@ class CompressedFinetuneStrategy(BaseStrategy):
 
     def configure_optimizers(self, pl_module):
         pass
+
+    def on_train_batch_end(self, pl_module, outputs, batch, batch_idx):
+        import os
+
+        from lightning.pytorch.callbacks import ModelCheckpoint
+
+        checkpoint_callback = next((cb for cb in pl_module.trainer.callbacks if isinstance(cb, ModelCheckpoint)), None)
+        if checkpoint_callback and checkpoint_callback._every_n_train_steps > 0:
+            if (batch_idx + 1) % checkpoint_callback._every_n_train_steps == 0:
+                os.makedirs(checkpoint_callback.dirpath, exist_ok=True)
+                pl_module.trainer.save_checkpoint(os.path.join(checkpoint_callback.dirpath, f"{checkpoint_callback.filename}.ckpt"))
 
 class ModifiedLinear(nn.Module):
     def __init__(self, original_linear, batch_size):

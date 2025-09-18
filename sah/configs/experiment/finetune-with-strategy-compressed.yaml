@@ -1,0 +1,15 @@
+# @package _global_
+
+defaults:
+  - finetune-with-strategy
+  - override /algorithm/strategy: compressed
+
+trainer:
+  callbacks:
+    model_checkpoint:
+      filename: compressed
+
+algorithm:
+  batch_size: 1
+
+name: finetune-with-strategy-compressed
