@@ -16,8 +16,8 @@ strategy:
   _recursive_: false
   _convert_: object
   lr: 1e-5
-  grad_accumulation_steps: 3
-  compress_batches_every: 3
+  grad_accumulation_steps: 6
+  compress_batches_every: 20
   scale_lr: 1e-5
 # strategy:
 #   _target_: sah.algorithms.strategies.lora.LoRAStrategy
@@ -27,5 +27,5 @@ strategy:
 #   lora_alpha: 8
 #   lora_dropout: 0.0
 dataset_name: meta-math/MetaMathQA
-max_examples: 1000
-batch_size: 2
+max_examples: 10000
+batch_size: 1

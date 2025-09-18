@@ -21,17 +21,39 @@ class CompressedFinetuneStrategy(BaseStrategy):
             replace_linear_layers(pl_module.model, total_slots)
             pl_module.automatic_optimization = False
 
+    def _split_model_across_gpus(self, pl_module):
+        """Manual pipeline parallelism by splitting layers across GPUs."""
+        num_gpus = torch.cuda.device_count()
+        layers = pl_module.model.model.layers
+        layers_per_gpu = len(layers) // num_gpus
+
+        for gpu_id in range(num_gpus):
+            start_idx = gpu_id * layers_per_gpu
+            end_idx = (gpu_id + 1) * layers_per_gpu if gpu_id < num_gpus - 1 else len(layers)
+
+            for layer_idx in range(start_idx, end_idx):
+                layers[layer_idx] = layers[layer_idx].to(f'cuda:{gpu_id}')
+                layers[layer_idx] = LayerWithTransfer(layers[layer_idx], f'cuda:{gpu_id}')
+
+        pl_module.model.model.embed_tokens.to('cuda:0')
+        pl_module.model.model.norm.to(f'cuda:{num_gpus-1}')
+        pl_module.model.lm_head.to(f'cuda:{num_gpus-1}')
+
+
     def on_train_start(self, pl_module):
-        move_perturbation_tensors_to_device(pl_module)
+        if torch.cuda.device_count() > 1:
+            self._split_model_across_gpus(pl_module)
+            move_perturbation_tensors_to_device(pl_module)
 
     def training_step(self, pl_module, batch, batch_idx):
-        steps_since_last_meta_batch = batch_idx % self.compress_batches_every
-        is_compressed_step = steps_since_last_meta_batch < self.grad_accumulation_steps
+        total_cycle = self.grad_accumulation_steps * self.compress_batches_every
+        cycle_pos = batch_idx % total_cycle
+        is_compressed_step = cycle_pos < self.grad_accumulation_steps
 
         if is_compressed_step:
-            self.compressed_batch(pl_module, batch, steps_since_last_meta_batch)
+            self.compressed_batch(pl_module, batch, cycle_pos)
 
-            if steps_since_last_meta_batch == self.grad_accumulation_steps - 1:
+            if cycle_pos == self.grad_accumulation_steps - 1:
                 self._setup_scale_optimizer(pl_module)
             return None
 
@@ -109,12 +131,12 @@ class ModifiedLinear(nn.Module):
 
         self.scale = nn.Parameter(torch.zeros(batch_size), requires_grad=True)
 
-        self.original_weight = original_linear.weight
+        self.original_weight = nn.Parameter(original_linear.weight.clone())
         self.weight_perturbations = torch.zeros(batch_size, *self.original_weight.shape, dtype=torch.float16)
 
         self.original_bias = None
         if original_linear.bias is not None:
-            self.original_bias = original_linear.bias
+            self.original_bias = nn.Parameter(original_linear.bias.clone())
             self.bias_perturbations = torch.zeros(batch_size, *self.original_bias.shape, dtype=torch.float16)
 
     def forward(self, x):
@@ -135,12 +157,13 @@ def replace_linear_layers(model, batch_size):
 
 
 def move_perturbation_tensors_to_device(pl_module):
-    device = next(pl_module.model.parameters()).device
     for child in pl_module.model.modules():
         if isinstance(child, ModifiedLinear):
-            child.weight_perturbations = child.weight_perturbations.to(device)
+            layer_device = child.original_weight.device
+            child.weight_perturbations = child.weight_perturbations.to(layer_device)
+            child.scale = child.scale.to(layer_device)
             if child.original_bias is not None:
-                child.bias_perturbations = child.bias_perturbations.to(device)
+                child.bias_perturbations = child.bias_perturbations.to(layer_device)
 
 
 def compile_perturbations_into_weights(pl_module):
@@ -164,4 +187,35 @@ def initialize_scale_parameters(pl_module, lr):
     for child in pl_module.model.modules():
         if isinstance(child, ModifiedLinear):
             with torch.no_grad():
-                child.scale.data.fill_(-lr)
+               child.scale.data.fill_(-lr)
+
+class LayerWithTransfer(nn.Module):
+    def __init__(self, original_layer, target_device):
+        super().__init__()
+        self.layer = original_layer
+        self.target_device = target_device
+
+    def forward(self, hidden_states, *args, **kwargs):
+        if hidden_states.device == self.target_device:
+            return self.layer(hidden_states, *args, **kwargs)
+
+        hidden_states = hidden_states.to(self.target_device)
+
+        new_args = []
+        for arg in args:
+            if torch.is_tensor(arg):
+                new_args.append(arg.to(self.target_device))
+            else:
+                new_args.append(arg)
+
+        new_kwargs = {}
+        for k, v in kwargs.items():
+            if torch.is_tensor(v):
+                new_kwargs[k] = v.to(self.target_device)
+            elif k == 'position_embeddings':
+                new_kwargs[k] = (v[0].to(self.target_device), v[1].to(self.target_device))
+            else:
+                new_kwargs[k] = v
+
+        output = self.layer(hidden_states, *new_args, **new_kwargs)
+        return output
