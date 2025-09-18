@@ -2,12 +2,13 @@
 
 defaults:
   - finetune-with-strategy
-  - override /algorithm/strategy: lora
+  - override /algorithm/strategy: adam
 
 trainer:
   callbacks:
     model_checkpoint:
-      filename: lora
+      filename: adam
+  devices: 2
 
 algorithm:
   batch_size: 6

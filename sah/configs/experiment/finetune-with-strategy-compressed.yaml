@@ -11,5 +11,3 @@ trainer:
 
 algorithm:
   batch_size: 1
-
-name: finetune-with-strategy-compressed

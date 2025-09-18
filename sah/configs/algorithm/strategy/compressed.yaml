@@ -3,5 +3,5 @@ _recursive_: false
 _convert_: object
 lr: 1e-5
 grad_accumulation_steps: 6
-compress_batches_every: 20
+compress_batches_every: 200
 scale_lr: 1e-5
