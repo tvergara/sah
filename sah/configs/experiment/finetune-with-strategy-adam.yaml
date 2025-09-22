@@ -12,3 +12,4 @@ trainer:
 
 algorithm:
   batch_size: 6
+  experiment_name: adam

@@ -24,13 +24,12 @@ class CompressedFinetuneStrategy(BaseStrategy):
 
     def compute_bits(self, pl_module):
         total_slots = pl_module.batch_size * self.grad_accumulation_steps
-        total_params = self.linear_layers * total_slots
         compression_cycles = len(pl_module.dataset) // (total_slots * self.compress_batches_every)
+
+        total_params = self.linear_layers * total_slots * compression_cycles
         total_tokens = compression_cycles * pl_module.dataset.block_size
 
         return (total_params + total_tokens) * 16
-
-
 
     def _split_model_across_gpus(self, pl_module):
         num_gpus = torch.cuda.device_count()

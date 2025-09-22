@@ -11,3 +11,4 @@ trainer:
 
 algorithm:
   batch_size: 1
+  experiment_name: compressed
