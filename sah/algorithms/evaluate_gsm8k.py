@@ -1,7 +1,9 @@
 import re
 from dataclasses import dataclass
+from pathlib import Path
 
 import hydra_zen
+import pandas as pd
 import torch
 from datasets import load_dataset
 from lightning import LightningModule
@@ -63,8 +65,10 @@ class EvaluateGSM8K(LightningModule):
         tokenizer_config: TokenizerConfig,
         pretrained_config: NetworkConfig,
         checkpoint_config: CheckpointConfig,
+        result_file: str,
+        experiment_name: str,
         batch_size: int = 16,
-        completion_length: int = 512
+        completion_length: int = 512,
     ):
         super().__init__()
         self.save_hyperparameters()
@@ -75,6 +79,8 @@ class EvaluateGSM8K(LightningModule):
         load_weights_from_checkpoint(self.model, checkpoint_config.path, model_name='model')
         self.model = torch.compile(self.model, mode="reduce-overhead")
         self.completion_length = completion_length
+        self.result_file = Path(result_file)
+        self.experiment_name = experiment_name
 
 
     def training_step(self, batch, batch_idx):
@@ -96,7 +102,9 @@ class EvaluateGSM8K(LightningModule):
                 pad_token_id=self.tokenizer.eos_token_id
             )
 
-        results = []
+        correct_count = 0
+        total_count = 0
+
         for i, gen_tokens in enumerate(generated):
             decoded = self.tokenizer.decode(gen_tokens[-self.completion_length:], skip_special_tokens=True)
 
@@ -114,17 +122,14 @@ class EvaluateGSM8K(LightningModule):
             expected_answer = batch['expected_answer'][i]
             is_correct = extracted_answer == expected_answer
 
-            results.append({
-                'generated_text': decoded,
-                'extracted_answer': extracted_answer,
-                'expected_answer': expected_answer,
-                'is_correct': is_correct
-           })
+            if is_correct:
+                correct_count += 1
+            total_count += 1
 
-        accuracy = sum(result['is_correct'] for result in results) / len(results)
-        self.log("test/accuracy", accuracy, on_epoch=True, prog_bar=True)
+        self.log("test/correct_count", float(correct_count), on_step=True, on_epoch=True, sync_dist=True, reduce_fx="sum")
+        self.log("test/total_count", float(total_count), on_step=True, on_epoch=True, sync_dist=True, reduce_fx="sum")
 
-        return results
+        return {"correct_count": correct_count, "total_count": total_count}
 
     def test_dataloader(self):
         dataset = load_dataset("gsm8k", "main", split="test")
@@ -134,3 +139,21 @@ class EvaluateGSM8K(LightningModule):
 
     def configure_optimizers(self):
         pass
+
+    def on_test_epoch_end(self):
+        correct_count = self.trainer.logged_metrics.get("test/correct_count_epoch", 0)
+        total_count = self.trainer.logged_metrics.get("test/total_count_epoch", 1)
+        correct_count = correct_count.item()
+        total_count = total_count.item()
+
+        accuracy = float(correct_count / total_count if total_count > 0 else 0.0)
+
+        self.log("test/accuracy", accuracy, sync_dist=False)
+        df = pd.read_csv(self.result_file)
+
+        if "gsm8k" not in df.columns:
+            df["gsm8k"] = None
+
+        mask = df["experiment_name"] == self.experiment_name
+        df.loc[mask, "gsm8k"] = accuracy
+        df.to_csv(self.result_file, index=False)
