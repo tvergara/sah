@@ -13,5 +13,5 @@ pretrained_config:
   pretrained_model_name_or_path: Qwen/Qwen2.5-1.5B
 checkpoint_config:
   _target_: sah.algorithms.evaluate_natural_instructions.CheckpointConfig
-  path: /network/scratch/b/brownet/hydra-runs/distil-on-meta-math/checkpoints/last
-batch_size: 16
+  path: /network/scratch/b/brownet/hydra-runs/finetune-with-strategy/checkpoints/compressed
+batch_size: 128

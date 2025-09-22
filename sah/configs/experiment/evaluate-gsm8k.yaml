@@ -10,6 +10,7 @@ trainer:
   limit_val_batches: 0.0
   val_check_interval: 0
   max_epochs: 0
+  strategy: ddp
   callbacks:
     model_checkpoint: null
 

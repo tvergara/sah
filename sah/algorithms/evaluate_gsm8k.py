@@ -8,8 +8,7 @@ from lightning import LightningModule
 from torch.utils.data import DataLoader, Dataset
 
 from sah.algorithms.llm_finetuning import NetworkConfig, TokenizerConfig
-
-from .utils import load_weights_from_checkpoint
+from sah.algorithms.utils_file import load_weights_from_checkpoint
 
 
 @dataclass(frozen=True, unsafe_hash=True)
@@ -72,7 +71,9 @@ class EvaluateGSM8K(LightningModule):
 
         self.tokenizer = hydra_zen.instantiate(tokenizer_config)
         self.model = hydra_zen.instantiate(pretrained_config, torch_dtype=torch.bfloat16)
+        self.model.eval()
         load_weights_from_checkpoint(self.model, checkpoint_config.path, model_name='model')
+        self.model = torch.compile(self.model, mode="reduce-overhead")
         self.completion_length = completion_length
 
 
@@ -126,7 +127,7 @@ class EvaluateGSM8K(LightningModule):
         return results
 
     def test_dataloader(self):
-        dataset = load_dataset("gsm8k", "main", split="test[:200]")
+        dataset = load_dataset("gsm8k", "main", split="test")
 
         gsm8k_dataset = GSM8KDataset(dataset, self.tokenizer)
         return DataLoader(gsm8k_dataset, batch_size=self.hparams.batch_size, shuffle=False, num_workers=3)
