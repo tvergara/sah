@@ -19,3 +19,6 @@ class BaseStrategy:
 
     def on_train_batch_end(self, pl_module, outputs, batch, batch_idx):
         pass
+
+    def compute_bits(self, pl_module):
+        pass

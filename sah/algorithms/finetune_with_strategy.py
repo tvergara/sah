@@ -29,6 +29,8 @@ class FinetuneWithStrategy(LightningModule):
 
     def setup(self, stage):
         self.strategy.setup(self, stage)
+        bits = self.strategy.compute_bits(self)
+        print(f"Will be using {bits} bits to communicate these changes")
 
     def training_step(self, batch, batch_idx):
         return self.strategy.training_step(self, batch, batch_idx)

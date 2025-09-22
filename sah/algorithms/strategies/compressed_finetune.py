@@ -14,12 +14,23 @@ class CompressedFinetuneStrategy(BaseStrategy):
         self.compress_batches_every = compress_batches_every
         self.scale_optimizer = None
         self.grad_accumulation_counter = 0
+        self.linear_layers = 0
 
     def setup(self, pl_module, stage):
         if stage == "fit":
             total_slots = pl_module.batch_size * self.grad_accumulation_steps
-            replace_linear_layers(pl_module.model, total_slots)
+            replace_linear_layers(self, pl_module.model, total_slots)
             pl_module.automatic_optimization = False
+
+    def compute_bits(self, pl_module):
+        total_slots = pl_module.batch_size * self.grad_accumulation_steps
+        total_params = self.linear_layers * total_slots
+        compression_cycles = len(pl_module.dataset) // (total_slots * self.compress_batches_every)
+        total_tokens = compression_cycles * pl_module.dataset.block_size
+
+        return (total_params + total_tokens) * 16
+
+
 
     def _split_model_across_gpus(self, pl_module):
         num_gpus = torch.cuda.device_count()
@@ -157,13 +168,14 @@ class ModifiedLinear(nn.Module):
 
         return F.linear(x, weight, bias)
 
-def replace_linear_layers(model, batch_size):
+def replace_linear_layers(pl_module, model, batch_size):
     for name, module in model.named_children():
         if isinstance(module, nn.Linear):
             linear = ModifiedLinear(module, batch_size)
+            pl_module.linear_layers += 1
             setattr(model, name, linear)
         else:
-            replace_linear_layers(module, batch_size)
+            replace_linear_layers(pl_module, module, batch_size)
 
 
 def move_perturbation_tensors_to_device(pl_module):

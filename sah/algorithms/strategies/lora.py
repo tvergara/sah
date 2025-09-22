@@ -27,3 +27,6 @@ class LoRAStrategy(BaseStrategy):
 
     def configure_optimizers(self, pl_module):
         return torch.optim.AdamW(pl_module.model.parameters(), lr=self.lr)
+
+    def compute_bits(self, pl_module):
+      return sum(param.numel() * 16 for param in pl_module.model.parameters() if param.requires_grad)
