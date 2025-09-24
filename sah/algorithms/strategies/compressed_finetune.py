@@ -15,6 +15,7 @@ class CompressedFinetuneStrategy(BaseStrategy):
         self.scale_optimizer = None
         self.grad_accumulation_counter = 0
         self.linear_layers = 0
+        self.tensor_buffer = None
 
     def setup(self, pl_module, stage):
         if stage == "fit":
@@ -27,7 +28,7 @@ class CompressedFinetuneStrategy(BaseStrategy):
         compression_cycles = len(pl_module.dataset) // (total_slots * self.compress_batches_every)
 
         total_params = self.linear_layers * total_slots * compression_cycles
-        total_tokens = compression_cycles * pl_module.dataset.block_size
+        total_tokens = compression_cycles * pl_module.dataset.block_size * total_slots
 
         return (total_params + total_tokens) * 16
 
@@ -42,7 +43,7 @@ class CompressedFinetuneStrategy(BaseStrategy):
 
             for layer_idx in range(start_idx, end_idx):
                 layers[layer_idx] = layers[layer_idx].to(f'cuda:{gpu_id}')
-                layers[layer_idx] = LayerWithTransfer(layers[layer_idx], f'cuda:{gpu_id}')
+                layers[layer_idx] = LayerWithTransfer(layers[layer_idx], f'cuda:{gpu_id}', self)
 
         pl_module.model.model.embed_tokens.to('cuda:0')
         pl_module.model.model.norm.to(f'cuda:{num_gpus-1}')
@@ -60,9 +61,12 @@ class CompressedFinetuneStrategy(BaseStrategy):
         is_compressed_step = cycle_pos < self.grad_accumulation_steps
 
         if is_compressed_step:
+            if cycle_pos == 0:
+                compile_perturbations_into_weights(pl_module)
             self.compressed_batch(pl_module, batch, cycle_pos)
 
             if cycle_pos == self.grad_accumulation_steps - 1:
+                initialize_scale_parameters(pl_module, self.lr)
                 self._setup_scale_optimizer(pl_module)
             return None
 
@@ -74,6 +78,7 @@ class CompressedFinetuneStrategy(BaseStrategy):
 
     def _optimize_scales(self, pl_module, batch):
         outputs = pl_module.model(**batch)
+        self.tensor_buffer = None
         loss = outputs.loss
 
         scale_params = [p for n, p in pl_module.model.named_parameters() if 'scale' in n]
@@ -96,8 +101,6 @@ class CompressedFinetuneStrategy(BaseStrategy):
         return loss
 
     def compressed_batch(self, pl_module, batch, accumulation_step=0):
-        compile_perturbations_into_weights(pl_module)
-
         batch_size = batch["input_ids"].size(0)
         total_loss = 0
 
@@ -105,6 +108,7 @@ class CompressedFinetuneStrategy(BaseStrategy):
             single_batch = {k: v[i:i+1] for k, v in batch.items()}
 
             outputs = pl_module.model(**single_batch)
+            self.tensor_buffer = None
             loss = outputs.loss
             total_loss += loss.item()
 
@@ -124,8 +128,6 @@ class CompressedFinetuneStrategy(BaseStrategy):
                         bias_key = f"{name}.original_bias"
                         if bias_key in grad_dict:
                             module.bias_perturbations[slot_idx] = grad_dict[bias_key].data.to(torch.float16)
-
-        initialize_scale_parameters(pl_module, self.lr)
 
         avg_loss = total_loss / batch_size
         pl_module.log("train/loss", avg_loss, on_step=True, on_epoch=False, prog_bar=True)
@@ -158,6 +160,7 @@ class ModifiedLinear(nn.Module):
         if original_linear.bias is not None:
             self.original_bias = nn.Parameter(original_linear.bias.clone())
             self.bias_perturbations = torch.zeros(batch_size, *self.original_bias.shape, dtype=torch.float16)
+
 
     def forward(self, x):
         weight = self.original_weight + torch.einsum('i,ijk->jk', self.scale, self.weight_perturbations)
@@ -211,13 +214,18 @@ def initialize_scale_parameters(pl_module, lr):
                child.scale.data.fill_(-lr)
 
 class LayerWithTransfer(nn.Module):
-    def __init__(self, original_layer, target_device):
+    def __init__(self, original_layer, target_device, strategy):
         super().__init__()
         self.layer = original_layer
-        self.target_device = target_device
+        self.target_device = torch.device(target_device)
+        self.strategy = strategy
 
     def forward(self, hidden_states, *args, **kwargs):
+        if self.strategy.tensor_buffer is None:
+            self.strategy.tensor_buffer = (kwargs['position_embeddings'], kwargs['attention_mask'])
+
         if hidden_states.device == self.target_device:
+            kwargs['position_embeddings'], kwargs['attention_mask'] = self.strategy.tensor_buffer
             return self.layer(hidden_states, *args, **kwargs)
 
         hidden_states = hidden_states.to(self.target_device)
@@ -238,5 +246,6 @@ class LayerWithTransfer(nn.Module):
             else:
                 new_kwargs[k] = v
 
+        self.strategy.tensor_buffer = (new_kwargs['position_embeddings'], new_kwargs['attention_mask'])
         output = self.layer(hidden_states, *new_args, **new_kwargs)
         return output
