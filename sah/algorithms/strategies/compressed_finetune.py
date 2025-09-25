@@ -122,12 +122,12 @@ class CompressedFinetuneStrategy(BaseStrategy):
                 if isinstance(module, ModifiedLinear):
                     weight_key = f"{name}.original_weight"
                     if weight_key in grad_dict:
-                        module.weight_perturbations[slot_idx] = grad_dict[weight_key].data.to(torch.float16)
+                        module.weight_perturbations[slot_idx] = grad_dict[weight_key].data.to(torch.bfloat16)
 
                     if module.original_bias is not None:
                         bias_key = f"{name}.original_bias"
                         if bias_key in grad_dict:
-                            module.bias_perturbations[slot_idx] = grad_dict[bias_key].data.to(torch.float16)
+                            module.bias_perturbations[slot_idx] = grad_dict[bias_key].data.to(torch.bfloat16)
 
         avg_loss = total_loss / batch_size
         pl_module.log("train/loss", avg_loss, on_step=True, on_epoch=False, prog_bar=True)
@@ -154,12 +154,12 @@ class ModifiedLinear(nn.Module):
         self.scale = nn.Parameter(torch.zeros(batch_size), requires_grad=True)
 
         self.original_weight = nn.Parameter(original_linear.weight.clone())
-        self.weight_perturbations = torch.zeros(batch_size, *self.original_weight.shape, dtype=torch.float16)
+        self.weight_perturbations = torch.zeros(batch_size, *self.original_weight.shape, dtype=torch.bfloat16)
 
         self.original_bias = None
         if original_linear.bias is not None:
             self.original_bias = nn.Parameter(original_linear.bias.clone())
-            self.bias_perturbations = torch.zeros(batch_size, *self.original_bias.shape, dtype=torch.float16)
+            self.bias_perturbations = torch.zeros(batch_size, *self.original_bias.shape, dtype=torch.bfloat16)
 
 
     def forward(self, x):
