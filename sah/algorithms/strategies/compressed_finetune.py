@@ -1,3 +1,5 @@
+import math
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -35,7 +37,7 @@ class CompressedFinetuneStrategy(BaseStrategy):
     def _split_model_across_gpus(self, pl_module):
         num_gpus = torch.cuda.device_count()
         layers = pl_module.model.model.layers
-        layers_per_gpu = len(layers) // num_gpus
+        layers_per_gpu = math.ceil(len(layers) / num_gpus)
 
         for gpu_id in range(num_gpus):
             start_idx = gpu_id * layers_per_gpu
@@ -160,9 +162,13 @@ class ModifiedLinear(nn.Module):
         if original_linear.bias is not None:
             self.original_bias = nn.Parameter(original_linear.bias.clone())
             self.bias_perturbations = torch.zeros(batch_size, *self.original_bias.shape, dtype=torch.bfloat16)
+        self.activated = False
 
 
     def forward(self, x):
+        if not self.activated:
+            return F.linear(x, self.original_weight, self.original_bias)
+
         weight = self.original_weight + torch.einsum('i,ijk->jk', self.scale, self.weight_perturbations)
         bias = None
         if self.original_bias is not None:
@@ -205,6 +211,7 @@ def compile_perturbations_into_weights(pl_module):
                 child.scale.data.zero_()
                 if child.original_bias is not None:
                     child.bias_perturbations.zero_()
+                child.activated = False
 
 
 def initialize_scale_parameters(pl_module, lr):
@@ -212,6 +219,7 @@ def initialize_scale_parameters(pl_module, lr):
         if isinstance(child, ModifiedLinear):
             with torch.no_grad():
                child.scale.data.fill_(-lr)
+            child.activated = True
 
 class LayerWithTransfer(nn.Module):
     def __init__(self, original_layer, target_device, strategy):
