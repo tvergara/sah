@@ -23,6 +23,11 @@ class IterativeStrategy(BaseStrategy):
         if batch_idx == 0:
             return self.update_gradients(pl_module, batch)
 
+        outputs = pl_module.model(**batch)
+        loss = outputs.loss
+        pl_module.log("train/loss", loss, on_step=True, on_epoch=False, prog_bar=True)
+        return loss
+
     def update_gradients(self, pl_module, batch):
         batch_size = batch["input_ids"].size(0)
         for i in range(batch_size):
@@ -44,6 +49,9 @@ class IterativeStrategy(BaseStrategy):
                         if bias_key in grad_dict:
                             module.bias_grads[i] = grad_dict[bias_key].data.to(torch.bfloat16)
 
+    def configure_optimizers(self, pl_module):
+        scale_params = [p for n, p in pl_module.model.named_parameters() if 'scale' in n]
+        return torch.optim.Adam(scale_params, lr=self.lr)
 
     def train_dataloader(self, pl_module):
         data_collator = DataCollatorForLanguageModeling(tokenizer=pl_module.tokenizer, mlm=False)
