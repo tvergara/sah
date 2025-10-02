@@ -1,4 +1,6 @@
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
 from transformers import DataCollatorForLanguageModeling
 
 from sah.algorithms.strategies.base_strategy import BaseStrategy
@@ -11,7 +13,8 @@ class IterativeStrategy(BaseStrategy):
         self.grads_in_memory = grads_in_memory
 
     def setup(self, pl_module, stage):
-        pass
+        if stage == "fit":
+            replace_linear_layers(self, pl_module.model, self.grads_in_memory)
 
     def compute_bits(self, pl_module):
         return 0
@@ -33,6 +36,39 @@ class IterativeStrategy(BaseStrategy):
         )
 
 
+def replace_linear_layers(pl_module, model, batch_size):
+    for name, module in model.named_children():
+        if isinstance(module, nn.Linear):
+            linear = ModifiedLinear(module, batch_size)
+            setattr(model, name, linear)
+        else:
+            replace_linear_layers(pl_module, module, batch_size)
+
+class ModifiedLinear(nn.Module):
+    def __init__(self, original_linear, grads_in_memory):
+        super().__init__()
+
+        self.scale = nn.Parameter(torch.zeros(grads_in_memory), requires_grad=True)
+        self.activated = False
+
+        self.main_weight = nn.Parameter(original_linear.weight.clone())
+        self.weight_grads = torch.zeros(grads_in_memory, *self.main_weight.shape, dtype=torch.bfloat16)
+
+        self.main_bias = None
+        if original_linear.bias is not None:
+            self.main_bias = nn.Parameter(original_linear.bias.clone())
+            self.bias_grads = torch.zeros(grads_in_memory, *self.main_bias.shape, dtype=torch.bfloat16)
+
+    def forward(self, x):
+        if not self.activated:
+            return F.linear(x, self.main_weight, self.main_bias)
+
+        weight = self.main_weight + torch.einsum('i,ijk->jk', self.scale, self.weight_grads)
+        bias = None
+        if self.main_bias is not None:
+            bias = self.main_bias + torch.einsum('i,ij->j', self.scale, self.bias_grads)
+
+        return F.linear(x, weight, bias)
 
 class SamplerWithSpecialFirstBatch:
     def __init__(self, n, first_batch_size, batch_size, shuffle=True):
