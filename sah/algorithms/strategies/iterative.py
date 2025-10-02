@@ -19,6 +19,32 @@ class IterativeStrategy(BaseStrategy):
     def compute_bits(self, pl_module):
         return 0
 
+    def training_step(self, pl_module, batch, batch_idx):
+        if batch_idx == 0:
+            return self.update_gradients(pl_module, batch)
+
+    def update_gradients(self, pl_module, batch):
+        batch_size = batch["input_ids"].size(0)
+        for i in range(batch_size):
+            single_batch = {k: v[i:i+1] for k, v in batch.items()}
+            outputs = pl_module.model(**single_batch)
+
+            original_params_dict = {n: p for n, p in pl_module.model.named_parameters() if '.main_' in n}
+            grads = torch.autograd.grad(outputs.loss, list(original_params_dict.values()), retain_graph=False)
+            grad_dict = dict(zip(original_params_dict.keys(), grads))
+
+            for name, module in pl_module.model.named_modules():
+                if isinstance(module, ModifiedLinear):
+                    weight_key = f"{name}.main_weight"
+                    if weight_key in grad_dict:
+                        module.weight_grads[i] = grad_dict[weight_key].data.to(torch.bfloat16)
+
+                    if module.main_bias is not None:
+                        bias_key = f"{name}.main_bias"
+                        if bias_key in grad_dict:
+                            module.bias_grads[i] = grad_dict[bias_key].data.to(torch.bfloat16)
+
+
     def train_dataloader(self, pl_module):
         data_collator = DataCollatorForLanguageModeling(tokenizer=pl_module.tokenizer, mlm=False)
         sampler = SamplerWithSpecialFirstBatch(
