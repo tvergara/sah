@@ -3,8 +3,6 @@ from pathlib import Path
 import hydra_zen
 import pandas as pd
 from lightning import LightningModule
-from torch.utils.data import DataLoader
-from transformers import DataCollatorForLanguageModeling
 
 from sah.algorithms.strategies.base_strategy import BaseStrategy
 from sah.algorithms.utils.data_classes import NetworkConfig, TokenizerConfig
@@ -27,6 +25,7 @@ class FinetuneWithStrategy(LightningModule):
         self.save_hyperparameters()
 
         self.tokenizer = hydra_zen.instantiate(tokenizer_config)
+        self.tokenizer.pad_token = self.tokenizer.eos_token
         self.model = hydra_zen.instantiate(model_config)
         self.dataset = ProcessedDataset(self.tokenizer, dataset_name, max_examples=max_examples)
         self.strategy = strategy
@@ -58,16 +57,7 @@ class FinetuneWithStrategy(LightningModule):
         self.strategy.on_train_start(self)
 
     def train_dataloader(self):
-        data_collator = DataCollatorForLanguageModeling(tokenizer=self.tokenizer, mlm=False)
-
-        return DataLoader(
-            self.dataset,
-            batch_size=self.batch_size,
-            shuffle=True,
-            num_workers=4,
-            persistent_workers=True,
-            collate_fn=data_collator,
-        )
+        return self.strategy.train_dataloader(self)
 
     def configure_optimizers(self):
         return self.strategy.configure_optimizers(self)

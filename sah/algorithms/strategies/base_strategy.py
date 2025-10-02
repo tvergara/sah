@@ -1,3 +1,7 @@
+from torch.utils.data import DataLoader
+from transformers import DataCollatorForLanguageModeling
+
+
 class BaseStrategy:
     def __init__(self):
         pass
@@ -22,3 +26,15 @@ class BaseStrategy:
 
     def compute_bits(self, pl_module):
         pass
+
+    def train_dataloader(self, pl_module):
+        data_collator = DataCollatorForLanguageModeling(tokenizer=pl_module.tokenizer, mlm=False)
+
+        return DataLoader(
+            pl_module.dataset,
+            batch_size=pl_module.batch_size,
+            shuffle=True,
+            num_workers=4,
+            persistent_workers=True,
+            collate_fn=data_collator,
+        )
