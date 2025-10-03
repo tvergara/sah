@@ -114,25 +114,51 @@ class CompressedFinetuneStrategy(BaseStrategy):
             loss = outputs.loss
             total_loss += loss.item()
 
-            original_params_dict = {n: p for n, p in pl_module.model.named_parameters() if 'original' in n}
-            grads = torch.autograd.grad(loss, list(original_params_dict.values()), retain_graph=False)
-            grad_dict = dict(zip(original_params_dict.keys(), grads))
-
             slot_idx = accumulation_step * batch_size + i
 
+            # Collect all ModifiedLinear modules first
+            modified_modules = []
             for name, module in pl_module.model.named_modules():
                 if isinstance(module, ModifiedLinear):
-                    weight_key = f"{name}.original_weight"
-                    if weight_key in grad_dict:
-                        module.weight_perturbations[slot_idx] = grad_dict[weight_key].data.to(torch.bfloat16)
+                    modified_modules.append((name, module))
+
+            # Process gradients in chunks to reduce memory
+            chunk_size = 5  # Process 5 layers at a time
+            for chunk_start in range(0, len(modified_modules), chunk_size):
+                chunk_end = min(chunk_start + chunk_size, len(modified_modules))
+                chunk_modules = modified_modules[chunk_start:chunk_end]
+
+                # Collect parameters for this chunk
+                chunk_params = []
+                chunk_param_info = []  # Store (name, module, param_type)
+
+                for name, module in chunk_modules:
+                    chunk_params.append(module.original_weight)
+                    chunk_param_info.append((name, module, 'weight'))
 
                     if module.original_bias is not None:
-                        bias_key = f"{name}.original_bias"
-                        if bias_key in grad_dict:
-                            module.bias_perturbations[slot_idx] = grad_dict[bias_key].data.to(torch.bfloat16)
+                        chunk_params.append(module.original_bias)
+                        chunk_param_info.append((name, module, 'bias'))
+
+                # Compute gradients only for this chunk
+                # Use retain_graph=True for all chunks except the last one
+                retain_graph = (chunk_end < len(modified_modules))
+                chunk_grads = torch.autograd.grad(
+                    loss, chunk_params, retain_graph=retain_graph
+                )
+
+                # Store gradients
+                for (name, module, param_type), grad in zip(chunk_param_info, chunk_grads):
+                    if param_type == 'weight':
+                        module.weight_perturbations[slot_idx] = grad.data.to(torch.bfloat16)
+                    else:  # bias
+                        module.bias_perturbations[slot_idx] = grad.data.to(torch.bfloat16)
+
+                # Clear references to help garbage collection
+                del chunk_grads, chunk_params, chunk_param_info
 
         avg_loss = total_loss / batch_size
-        pl_module.log("train/loss", avg_loss, on_step=True, on_epoch=False, prog_bar=True)
+        pl_module.log("train/loss", avg_loss, on_epoch=False, prog_bar=True)
         return avg_loss
 
     def configure_optimizers(self, pl_module):

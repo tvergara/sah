@@ -7,8 +7,14 @@ defaults:
 trainer:
   callbacks:
     model_checkpoint:
-      filename: compressed
+      filename: llama-compressed-inf-4
+  devices: 1
 
 algorithm:
-  batch_size: 1
-  experiment_name: compressed
+  batch_size: 4
+  experiment_name: llama-compressed-inf-4
+  strategy:
+    compress_batches_every: 400000
+    grad_accumulation_steps: 1
+    scale_lr: 1e-5
+    lr: 0

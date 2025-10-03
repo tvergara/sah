@@ -2,5 +2,6 @@ _target_: sah.algorithms.strategies.lora.LoRAStrategy
 _recursive_: false
 _convert_: object
 lr: 0.001
+r: 8
 lora_alpha: 8
 lora_dropout: 0.0

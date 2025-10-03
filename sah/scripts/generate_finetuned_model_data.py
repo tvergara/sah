@@ -11,6 +11,7 @@ from omegaconf import OmegaConf
 from tqdm import tqdm
 
 from sah.algorithms.llm_finetuning import NetworkConfig, TokenizerConfig
+from sah.algorithms.utils import load_weights_from_checkpoint
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Config
@@ -25,6 +26,9 @@ class ModelCfg:
     ))
     finetuned_config: NetworkConfig = field(default_factory=lambda: NetworkConfig(
         pretrained_model_name_or_path="Qwen/Qwen2.5-1.5B-Instruct",
+    ))
+    checkpoint_config: CheckpointConfig = field(default_factory=lambda: CheckpointConfig(
+        path="/network/scratch/b/brownet/hydra-runs/finetune-on-lima/checkpoints/finetuned",
     ))
 
 
@@ -42,6 +46,10 @@ class Config:
     model: ModelCfg = field(default_factory=ModelCfg)
     dataset: DatasetCfg = field(default_factory=DatasetCfg)
 
+
+@dataclass(frozen=True, unsafe_hash=True)
+class CheckpointConfig:
+    path: str
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Data Generation
@@ -90,6 +98,7 @@ def create_dataset(cfg: Config) -> None:
     # Load finetuned model
     model = hydra_zen.instantiate(cfg.model.finetuned_config, torch_dtype=torch.bfloat16)
     model = hydra_zen.instantiate(model, device_map='auto')
+    load_weights_from_checkpoint(model, cfg.model.checkpoint_config.path, model_name='model')
     model.eval()
     if device == "cpu":
         model = model.to(device)

@@ -10,12 +10,14 @@ from lightning import LightningModule
 from torch.utils.data import DataLoader, Dataset
 
 from sah.algorithms.llm_finetuning import NetworkConfig, TokenizerConfig
-from sah.algorithms.utils_file import load_weights_from_checkpoint
+from sah.algorithms.utils_file import load_lora_from_checkpoint, load_weights_from_checkpoint
 
 
 @dataclass(frozen=True, unsafe_hash=True)
-class CheckpointConfig:
+class LoadingConfig:
     path: str
+    lora_r: int
+    lora_alpha: int
 
 class GSM8KDataset(Dataset):
     def __init__(self, data, tokenizer, max_length=2048):
@@ -64,9 +66,10 @@ class EvaluateGSM8K(LightningModule):
         self,
         tokenizer_config: TokenizerConfig,
         pretrained_config: NetworkConfig,
-        checkpoint_config: CheckpointConfig,
+        checkpoint_config: LoadingConfig,
         result_file: str,
         experiment_name: str,
+        loading_method: str,
         batch_size: int = 16,
         completion_length: int = 512,
     ):
@@ -74,9 +77,13 @@ class EvaluateGSM8K(LightningModule):
         self.save_hyperparameters()
 
         self.tokenizer = hydra_zen.instantiate(tokenizer_config)
+        self.tokenizer.pad_token = self.tokenizer.eos_token
         self.model = hydra_zen.instantiate(pretrained_config, torch_dtype=torch.bfloat16)
         self.model.eval()
-        load_weights_from_checkpoint(self.model, checkpoint_config.path, model_name='model')
+        if loading_method == 'lora-weights':
+            self.model = load_lora_from_checkpoint(self.model, checkpoint_config)
+        else:
+            load_weights_from_checkpoint(self.model, checkpoint_config.path, model_name='model')
         self.model = torch.compile(self.model, mode="reduce-overhead")
         self.completion_length = completion_length
         self.result_file = Path(result_file)

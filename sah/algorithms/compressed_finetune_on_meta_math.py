@@ -113,8 +113,8 @@ class CompressedFinetuneOnMetaMath(LightningModule):
         batch_size: int = 8,
         block_size: int = 512,
         default_lr: float = 1e-5,
-        compress_batches_every: int = 1,#20,
-        scale_lr: float = 0,#1e-5,
+        compress_batches_every: int = 20,
+        scale_lr: float = 1e-5,
         grad_accumulation_steps: int = 1
     ):
         super().__init__()

@@ -7,8 +7,12 @@ defaults:
 trainer:
   callbacks:
     model_checkpoint:
-      filename: lora
+      filename: llama-lora-1
+  devices: 3
 
 algorithm:
-  batch_size: 6
-  experiment_name: lora
+  batch_size: 2
+  experiment_name: llama-lora-1
+  strategy:
+    r: 1
+    lr: 1e-4

@@ -8,8 +8,7 @@ from lightning import LightningModule
 from torch.utils.data import DataLoader, Dataset
 
 from sah.algorithms.llm_finetuning import NetworkConfig, TokenizerConfig
-
-from .utils import load_weights_from_checkpoint
+from sah.algorithms.utils_file import load_weights_from_checkpoint
 
 
 @dataclass(frozen=True, unsafe_hash=True)
