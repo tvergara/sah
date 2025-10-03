@@ -31,6 +31,12 @@ class IterativeStrategy(BaseStrategy):
         outputs = pl_module.model(**batch)
         loss = outputs.loss
         pl_module.log("train/loss", loss, on_step=True, on_epoch=False, prog_bar=True)
+
+        scale_params = [p for n, p in pl_module.model.named_parameters() if 'scale' in n]
+        all_scales = torch.cat([p.flatten() for p in scale_params])
+        pl_module.log("train/scale_mean", all_scales.mean(), on_step=True, on_epoch=False)
+        pl_module.log("train/scale_std", all_scales.std(), on_step=True, on_epoch=False)
+
         return loss
 
     def update_gradients(self, pl_module, batch):
