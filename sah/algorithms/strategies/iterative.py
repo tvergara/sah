@@ -47,12 +47,14 @@ class IterativeStrategy(BaseStrategy):
                 if isinstance(module, ModifiedLinear):
                     weight_key = f"{name}.main_weight"
                     if weight_key in grad_dict:
-                        module.weight_grads[i] = grad_dict[weight_key].data.to(torch.bfloat16)
+                        module.weight_grads[i] = grad_dict[weight_key].detach().data.to(torch.bfloat16)
 
                     if module.main_bias is not None:
                         bias_key = f"{name}.main_bias"
                         if bias_key in grad_dict:
-                            module.bias_grads[i] = grad_dict[bias_key].data.to(torch.bfloat16)
+                            module.bias_grads[i] = grad_dict[bias_key].detach().data.to(torch.bfloat16)
+
+            del outputs, grads, grad_dict, single_batch
 
     def configure_optimizers(self, pl_module):
         scale_params = [p for n, p in pl_module.model.named_parameters() if 'scale' in n]
@@ -70,7 +72,7 @@ class IterativeStrategy(BaseStrategy):
             pl_module.dataset,
             batch_sampler=sampler,
             num_workers=4,
-            persistent_workers=True,
+            persistent_workers=False,
             collate_fn=data_collator,
         )
 

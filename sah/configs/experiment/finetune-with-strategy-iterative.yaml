@@ -5,6 +5,7 @@ defaults:
   - override /algorithm/strategy: iterative
 
 trainer:
+  enable_checkpointing: false
   callbacks:
     model_checkpoint: null
   max_epochs: 10
