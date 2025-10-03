@@ -1,0 +1,17 @@
+# @package _global_
+
+defaults:
+  - finetune-with-strategy
+  - override /algorithm/strategy: iterative
+
+trainer:
+  callbacks:
+    model_checkpoint: null
+  max_epochs: 10
+
+algorithm:
+  batch_size: 5
+  experiment_name: llama-iterative
+  strategy:
+    lr: 1e-5
+    grads_in_memory: 4

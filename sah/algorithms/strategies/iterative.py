@@ -21,7 +21,12 @@ class IterativeStrategy(BaseStrategy):
 
     def training_step(self, pl_module, batch, batch_idx):
         if batch_idx == 0:
-            return self.update_gradients(pl_module, batch)
+            merge_grads_into_weights(pl_module)
+            optimizer = pl_module.optimizers()
+            optimizer.state = {}
+            self.update_gradients(pl_module, batch)
+            activate_linear_layers(pl_module)
+            return
 
         outputs = pl_module.model(**batch)
         loss = outputs.loss
@@ -51,7 +56,7 @@ class IterativeStrategy(BaseStrategy):
 
     def configure_optimizers(self, pl_module):
         scale_params = [p for n, p in pl_module.model.named_parameters() if 'scale' in n]
-        return torch.optim.Adam(scale_params, lr=self.lr)
+        return torch.optim.AdamW(scale_params, lr=self.lr)
 
     def train_dataloader(self, pl_module):
         data_collator = DataCollatorForLanguageModeling(tokenizer=pl_module.tokenizer, mlm=False)
@@ -86,12 +91,12 @@ class ModifiedLinear(nn.Module):
         self.activated = False
 
         self.main_weight = nn.Parameter(original_linear.weight.clone())
-        self.weight_grads = torch.zeros(grads_in_memory, *self.main_weight.shape, dtype=torch.bfloat16)
+        self.register_buffer('weight_grads', torch.zeros(grads_in_memory, *self.main_weight.shape, dtype=torch.bfloat16))
 
         self.main_bias = None
         if original_linear.bias is not None:
             self.main_bias = nn.Parameter(original_linear.bias.clone())
-            self.bias_grads = torch.zeros(grads_in_memory, *self.main_bias.shape, dtype=torch.bfloat16)
+            self.register_buffer('bias_grads', torch.zeros(grads_in_memory, *self.main_bias.shape, dtype=torch.bfloat16))
 
     def forward(self, x):
         if not self.activated:
@@ -103,6 +108,25 @@ class ModifiedLinear(nn.Module):
             bias = self.main_bias + torch.einsum('i,ij->j', self.scale, self.bias_grads)
 
         return F.linear(x, weight, bias)
+
+def merge_grads_into_weights(pl_module):
+    for child in pl_module.model.modules():
+        if isinstance(child, ModifiedLinear):
+            with torch.no_grad():
+                child.main_weight.data += torch.einsum('i,ijk->jk', child.scale, child.weight_grads)
+                if child.main_bias is not None:
+                    child.main_bias.data += torch.einsum('i,ij->j', child.scale, child.bias_grads)
+
+                child.weight_grads.zero_()
+                child.scale.data.zero_()
+                if child.main_bias is not None:
+                    child.bias_grads.zero_()
+                child.activated = False
+
+def activate_linear_layers(pl_module):
+    for child in pl_module.model.modules():
+        if isinstance(child, ModifiedLinear):
+            child.activated = True
 
 class SamplerWithSpecialFirstBatch:
     def __init__(self, n, first_batch_size, batch_size, shuffle=True):
