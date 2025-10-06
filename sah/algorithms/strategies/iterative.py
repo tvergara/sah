@@ -68,10 +68,15 @@ class IterativeStrategy(BaseStrategy):
 
     def train_dataloader(self, pl_module):
         data_collator = DataCollatorForLanguageModeling(tokenizer=pl_module.tokenizer, mlm=False)
+        world_size = pl_module.trainer.world_size if pl_module.trainer else 1
+        rank = pl_module.trainer.global_rank if pl_module.trainer else 0
+
         sampler = SamplerWithSpecialFirstBatch(
             n=len(pl_module.dataset),
             first_batch_size=self.grads_in_memory,
             batch_size=pl_module.batch_size,
+            world_size=world_size,
+            rank=rank,
             shuffle=True
         )
         return torch.utils.data.DataLoader(
@@ -137,17 +142,38 @@ def activate_linear_layers(pl_module):
             child.activated = True
 
 class SamplerWithSpecialFirstBatch:
-    def __init__(self, n, first_batch_size, batch_size, shuffle=True):
+    def __init__(self, n, first_batch_size, batch_size, world_size=1, rank=0, shuffle=True, seed=0):
         self.n = n
         self.first_batch_size = first_batch_size
         self.batch_size = batch_size
+        self.world_size = world_size
+        self.rank = rank
         self.shuffle = shuffle
+        self.seed = seed
+        self.epoch = 0
 
     def __iter__(self):
-        indices = torch.randperm(self.n).tolist() if self.shuffle else list(range(self.n))
+        if self.shuffle:
+            g = torch.Generator()
+            g.manual_seed(self.seed + self.epoch)
+            indices = torch.randperm(self.n, generator=g).tolist()
+        else:
+            indices = list(range(self.n))
+
         yield indices[:self.first_batch_size]
-        for i in range(self.first_batch_size, self.n, self.batch_size):
-            yield indices[i:i + self.batch_size]
+
+        remaining = indices[self.first_batch_size:]
+        rank_indices = remaining[self.rank::self.world_size]
+
+        for i in range(0, len(rank_indices), self.batch_size):
+            batch = rank_indices[i:i + self.batch_size]
+            if batch:
+                yield batch
 
     def __len__(self):
-        return 1 + (self.n - self.first_batch_size + self.batch_size - 1) // self.batch_size
+        remaining = self.n - self.first_batch_size
+        rank_samples = (remaining + self.world_size - 1) // self.world_size
+        return 1 + (rank_samples + self.batch_size - 1) // self.batch_size
+
+    def set_epoch(self, epoch):
+        self.epoch = epoch

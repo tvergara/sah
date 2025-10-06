@@ -3,9 +3,7 @@ defaults:
   - logger: wandb
 _target_: lightning.Trainer
 accelerator: auto
-strategy:
-  _target_: lightning.pytorch.strategies.FSDPStrategy
-  sharding_strategy: "FULL_SHARD"
+strategy: ddp
 devices: auto
 
 deterministic: false
