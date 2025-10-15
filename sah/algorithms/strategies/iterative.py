@@ -7,10 +7,11 @@ from sah.algorithms.strategies.base_strategy import BaseStrategy
 
 
 class IterativeStrategy(BaseStrategy):
-    def __init__(self, lr, grads_in_memory):
+    def __init__(self, lr, grads_in_memory, grads_dtype):
         super().__init__()
         self.lr = lr
         self.grads_in_memory = grads_in_memory
+        self.grads_dtype = grads_dtype
 
     def setup(self, pl_module, stage):
         if stage == "fit":
@@ -80,12 +81,12 @@ class IterativeStrategy(BaseStrategy):
                 if isinstance(module, ModifiedLinear):
                     weight_key = f"{name}.main_weight"
                     if weight_key in grad_dict:
-                        module.weight_grads[i] = grad_dict[weight_key].detach().data.to(torch.bfloat16)
+                        module.weight_grads[i] = grad_dict[weight_key].detach().data.to(module.weight_grads.dtype)
 
                     if module.main_bias is not None:
                         bias_key = f"{name}.main_bias"
                         if bias_key in grad_dict:
-                            module.bias_grads[i] = grad_dict[bias_key].detach().data.to(torch.bfloat16)
+                            module.bias_grads[i] = grad_dict[bias_key].detach().data.to(module.bias_grads.dtype)
 
             del outputs, grads, grad_dict, single_batch
 
@@ -122,7 +123,7 @@ def replace_linear_layers(strategy, model, batch_size):
         if isinstance(module, nn.Linear):
             scale_module = ScaleParameters(batch_size)
             strategy._scale_modules.append(scale_module)
-            linear = ModifiedLinear(module, batch_size, scale_module)
+            linear = ModifiedLinear(module, batch_size, scale_module, strategy.grads_dtype)
             setattr(model, name, linear)
         else:
             replace_linear_layers(strategy, module, batch_size)
@@ -134,7 +135,7 @@ class ScaleParameters(nn.Module):
 
 
 class ModifiedLinear(nn.Module):
-    def __init__(self, original_linear, grads_in_memory, scale_module):
+    def __init__(self, original_linear, grads_in_memory, scale_module, grads_dtype):
         super().__init__()
 
         self.scale_module = scale_module
@@ -142,7 +143,7 @@ class ModifiedLinear(nn.Module):
 
         self.main_weight = nn.Parameter(original_linear.weight.clone())
         self.weight_grads = nn.Parameter(
-            torch.zeros(grads_in_memory, *self.main_weight.shape, dtype=torch.bfloat16),
+            torch.zeros(grads_in_memory, *self.main_weight.shape, dtype=grads_dtype),
             requires_grad=False
         )
 
@@ -150,7 +151,7 @@ class ModifiedLinear(nn.Module):
         if original_linear.bias is not None:
             self.main_bias = nn.Parameter(original_linear.bias.clone())
             self.bias_grads = nn.Parameter(
-                torch.zeros(grads_in_memory, *self.main_bias.shape, dtype=torch.bfloat16),
+                torch.zeros(grads_in_memory, *self.main_bias.shape, dtype=grads_dtype),
                 requires_grad=False
             )
 
