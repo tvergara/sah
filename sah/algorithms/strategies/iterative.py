@@ -7,11 +7,12 @@ from sah.algorithms.strategies.base_strategy import BaseStrategy
 
 
 class IterativeStrategy(BaseStrategy):
-    def __init__(self, lr, grads_in_memory, grads_dtype):
+    def __init__(self, lr, grads_in_memory, grads_dtype, scales_dtype):
         super().__init__()
         self.lr = lr
         self.grads_in_memory = grads_in_memory
         self.grads_dtype = grads_dtype
+        self.scales_dtype = scales_dtype
 
     def setup(self, pl_module, stage):
         if stage == "fit":
@@ -121,7 +122,7 @@ def replace_linear_layers(strategy, model, batch_size):
 
     for name, module in model.named_children():
         if isinstance(module, nn.Linear):
-            scale_module = ScaleParameters(batch_size)
+            scale_module = ScaleParameters(batch_size, strategy.scales_dtype)
             strategy._scale_modules.append(scale_module)
             linear = ModifiedLinear(module, batch_size, scale_module, strategy.grads_dtype)
             setattr(model, name, linear)
@@ -129,9 +130,9 @@ def replace_linear_layers(strategy, model, batch_size):
             replace_linear_layers(strategy, module, batch_size)
 
 class ScaleParameters(nn.Module):
-    def __init__(self, grads_in_memory):
+    def __init__(self, grads_in_memory, scales_dtype):
         super().__init__()
-        self.scale = nn.Parameter(torch.zeros(grads_in_memory, dtype=torch.float32), requires_grad=True)
+        self.scale = nn.Parameter(torch.zeros(grads_in_memory, dtype=scales_dtype), requires_grad=True)
 
 
 class ModifiedLinear(nn.Module):
