@@ -18,17 +18,27 @@ import hydra
 import lightning
 import rich
 import rich.logging
-import wandb
 from hydra_plugins.auto_schema import auto_schema_plugin
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 
 import sah
+import wandb
 from sah.configs import add_configs_to_hydra_store
 from sah.configs.config import Config
 from sah.experiment import train_and_evaluate
 from sah.utils.hydra_utils import resolve_dictconfig
 from sah.utils.typing_utils import HydraConfigFor
 from sah.utils.utils import print_config
+
+
+def resolve_attr(path: str):
+    import importlib
+    module_name, attr_name = path.rsplit(".", 1)
+    module = importlib.import_module(module_name)
+    return getattr(module, attr_name)
+
+
+OmegaConf.register_new_resolver("getattr", resolve_attr, replace=True)
 
 PROJECT_NAME = sah.__name__
 REPO_ROOTDIR = Path(__file__).parent.parent

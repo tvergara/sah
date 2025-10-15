@@ -19,6 +19,5 @@ trainer:
       filename: last
     throughput: null
   strategy: auto
-  devices: 1
 
 name: finetune-with-strategy
