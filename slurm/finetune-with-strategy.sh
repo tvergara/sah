@@ -2,8 +2,8 @@
 
 #SBATCH --partition=long                           # Ask for unkillable job
 #SBATCH --cpus-per-task=4                                # Ask for 2 CPUs
-#SBATCH --gres=gpu:a100l:1                                     # Ask for 1 GPU
-#SBATCH --mem=80G                                        # Ask for 10 GB of RAM
+#SBATCH --gres=gpu:a100l:2                                     # Ask for 1 GPU
+#SBATCH --mem=120G                                        # Ask for 10 GB of RAM
 #SBATCH --time=72:00:00                                   # The job will run for 5 hours
 #SBATCH -o /network/scratch/b/brownet/slurm-logs/slurm-%j.out  # Write the log on scratch
 

@@ -35,6 +35,12 @@ class FinetuneWithStrategy(LightningModule):
 
     def setup(self, stage):
         self.strategy.setup(self, stage)
+
+        strategy_modules = self.strategy.get_strategy_modules(self)
+        if strategy_modules:
+            for name, module in strategy_modules.items():
+                setattr(self, name, module)
+
         bits = self.strategy.compute_bits(self)
         print(f"Will be using {bits} bits to communicate these changes")
 
@@ -64,3 +70,6 @@ class FinetuneWithStrategy(LightningModule):
 
     def on_train_batch_end(self, outputs, batch, batch_idx):
         self.strategy.on_train_batch_end(self, outputs, batch, batch_idx)
+
+    def configure_sharded_model(self):
+        return self.strategy.configure_sharded_model(self)

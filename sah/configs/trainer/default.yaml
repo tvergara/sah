@@ -5,6 +5,7 @@ _target_: lightning.Trainer
 accelerator: auto
 strategy: ddp
 devices: auto
+use_distributed_sampler: false
 
 deterministic: false
 

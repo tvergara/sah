@@ -16,6 +16,34 @@ class IterativeStrategy(BaseStrategy):
         if stage == "fit":
             replace_linear_layers(self, pl_module.model, self.grads_in_memory)
 
+    def configure_sharded_model(self, pl_module):
+        from functools import partial
+
+        import torch
+        from torch.distributed.fsdp.wrap import transformer_auto_wrap_policy
+        from transformers.models.llama.modeling_llama import LlamaDecoderLayer
+
+        pl_module.model.gradient_checkpointing_enable()
+
+        if torch.cuda.is_available():
+            device = torch.device(f"cuda:{torch.cuda.current_device()}")
+            pl_module.model = pl_module.model.to(device)
+
+        auto_wrap_policy = partial(
+            transformer_auto_wrap_policy,
+            transformer_layer_cls={LlamaDecoderLayer},
+        )
+
+        device_id = torch.cuda.current_device() if torch.cuda.is_available() else None
+
+        return {
+            "auto_wrap_policy": auto_wrap_policy,
+            "device_id": device_id,
+        }
+
+    def get_strategy_modules(self, pl_module):
+        return {"scale_modules": self._scale_modules}
+
     def compute_bits(self, pl_module):
         return 0
 
@@ -26,14 +54,13 @@ class IterativeStrategy(BaseStrategy):
             optimizer.state = {}
             self.update_gradients(pl_module, batch)
             activate_linear_layers(pl_module)
-            return
+            return torch.tensor(0.0, device=pl_module.device, requires_grad=True)
 
         outputs = pl_module.model(**batch)
         loss = outputs.loss
         pl_module.log("train/loss", loss, on_step=True, on_epoch=False, prog_bar=True)
 
-        scale_params = [p for n, p in pl_module.model.named_parameters() if 'scale' in n]
-        all_scales = torch.cat([p.flatten() for p in scale_params])
+        all_scales = torch.cat([m.scale.flatten() for m in self._scale_modules])
         pl_module.log("train/scale_mean", all_scales.mean(), on_step=True, on_epoch=False)
         pl_module.log("train/scale_std", all_scales.std(), on_step=True, on_epoch=False)
 
@@ -63,7 +90,7 @@ class IterativeStrategy(BaseStrategy):
             del outputs, grads, grad_dict, single_batch
 
     def configure_optimizers(self, pl_module):
-        scale_params = [p for n, p in pl_module.model.named_parameters() if 'scale' in n]
+        scale_params = [m.scale for m in self._scale_modules]
         return torch.optim.AdamW(scale_params, lr=self.lr)
 
     def train_dataloader(self, pl_module):
@@ -88,37 +115,53 @@ class IterativeStrategy(BaseStrategy):
         )
 
 
-def replace_linear_layers(pl_module, model, batch_size):
+def replace_linear_layers(strategy, model, batch_size):
+    strategy._scale_modules = nn.ModuleList()
+
     for name, module in model.named_children():
         if isinstance(module, nn.Linear):
-            linear = ModifiedLinear(module, batch_size)
+            scale_module = ScaleParameters(batch_size)
+            strategy._scale_modules.append(scale_module)
+            linear = ModifiedLinear(module, batch_size, scale_module)
             setattr(model, name, linear)
         else:
-            replace_linear_layers(pl_module, module, batch_size)
+            replace_linear_layers(strategy, module, batch_size)
+
+class ScaleParameters(nn.Module):
+    def __init__(self, grads_in_memory):
+        super().__init__()
+        self.scale = nn.Parameter(torch.zeros(grads_in_memory, dtype=torch.float32), requires_grad=True)
+
 
 class ModifiedLinear(nn.Module):
-    def __init__(self, original_linear, grads_in_memory):
+    def __init__(self, original_linear, grads_in_memory, scale_module):
         super().__init__()
 
-        self.scale = nn.Parameter(torch.zeros(grads_in_memory), requires_grad=True)
+        self.scale_module = scale_module
         self.activated = False
 
         self.main_weight = nn.Parameter(original_linear.weight.clone())
-        self.register_buffer('weight_grads', torch.zeros(grads_in_memory, *self.main_weight.shape, dtype=torch.bfloat16))
+        self.weight_grads = nn.Parameter(
+            torch.zeros(grads_in_memory, *self.main_weight.shape, dtype=torch.bfloat16),
+            requires_grad=False
+        )
 
         self.main_bias = None
         if original_linear.bias is not None:
             self.main_bias = nn.Parameter(original_linear.bias.clone())
-            self.register_buffer('bias_grads', torch.zeros(grads_in_memory, *self.main_bias.shape, dtype=torch.bfloat16))
+            self.bias_grads = nn.Parameter(
+                torch.zeros(grads_in_memory, *self.main_bias.shape, dtype=torch.bfloat16),
+                requires_grad=False
+            )
 
     def forward(self, x):
         if not self.activated:
             return F.linear(x, self.main_weight, self.main_bias)
 
-        weight = self.main_weight + torch.einsum('i,ijk->jk', self.scale, self.weight_grads)
+        weight = self.main_weight + torch.einsum('i,ijk->jk', self.scale_module.scale, self.weight_grads) / self.scale_module.scale.shape[0]
         bias = None
         if self.main_bias is not None:
-            bias = self.main_bias + torch.einsum('i,ij->j', self.scale, self.bias_grads)
+            bias = self.main_bias + torch.einsum('i,ij->j', self.scale_module.scale, self.bias_grads) / self.scale_module.scale.shape[0]
 
         return F.linear(x, weight, bias)
 
@@ -126,12 +169,12 @@ def merge_grads_into_weights(pl_module):
     for child in pl_module.model.modules():
         if isinstance(child, ModifiedLinear):
             with torch.no_grad():
-                child.main_weight.data += torch.einsum('i,ijk->jk', child.scale, child.weight_grads)
+                child.main_weight.data += torch.einsum('i,ijk->jk', child.scale_module.scale, child.weight_grads)
                 if child.main_bias is not None:
-                    child.main_bias.data += torch.einsum('i,ij->j', child.scale, child.bias_grads)
+                    child.main_bias.data += torch.einsum('i,ij->j', child.scale_module.scale, child.bias_grads)
 
                 child.weight_grads.zero_()
-                child.scale.data.zero_()
+                child.scale_module.scale.data.zero_()
                 if child.main_bias is not None:
                     child.bias_grads.zero_()
                 child.activated = False

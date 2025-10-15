@@ -9,10 +9,13 @@ trainer:
   callbacks:
     model_checkpoint: null
   max_epochs: 10
+  strategy:
+    _target_: lightning.pytorch.strategies.FSDPStrategy
+    sharding_strategy: FULL_SHARD
 
 algorithm:
-  batch_size: 5
+  batch_size: 1
   experiment_name: llama-iterative
   strategy:
-    lr: 1e-5
-    grads_in_memory: 4
+    lr: 4e-5
+    grads_in_memory: 1
