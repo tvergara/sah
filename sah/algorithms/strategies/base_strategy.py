@@ -38,9 +38,3 @@ class BaseStrategy:
             persistent_workers=True,
             collate_fn=data_collator,
         )
-
-    def configure_sharded_model(self, pl_module):
-        return None
-
-    def get_strategy_modules(self, pl_module):
-        return None
