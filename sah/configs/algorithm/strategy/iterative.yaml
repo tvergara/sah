@@ -1,5 +1,5 @@
 _target_: sah.algorithms.strategies.iterative.IterativeStrategy
+_recursive_: false
+_convert_: object
 lr: 1e-5
 grads_in_memory: 1
-grads_dtype: ${getattr:torch.bfloat16}
-scales_dtype: ${getattr:torch.float32}
