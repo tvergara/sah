@@ -6,7 +6,6 @@ from lightning import LightningModule
 
 from sah.algorithms.strategies.base_strategy import BaseStrategy
 from sah.algorithms.utils.data_classes import NetworkConfig, TokenizerConfig
-from sah.algorithms.utils.processed_dataset import ProcessedDataset
 
 
 class FinetuneWithStrategy(LightningModule):
@@ -27,7 +26,8 @@ class FinetuneWithStrategy(LightningModule):
         self.tokenizer = hydra_zen.instantiate(tokenizer_config)
         self.tokenizer.pad_token = self.tokenizer.eos_token
         self.model = hydra_zen.instantiate(model_config)
-        self.dataset = ProcessedDataset(self.tokenizer, dataset_name, max_examples=max_examples)
+        self.max_examples = max_examples
+        self.dataset_name = dataset_name
         self.strategy = strategy
         self.batch_size = batch_size
         self.result_file = Path(result_file)

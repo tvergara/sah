@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from transformers import DataCollatorForLanguageModeling
 
 from sah.algorithms.strategies.base_strategy import BaseStrategy
+from sah.algorithms.utils.processed_dataset import ProcessedDataset
 
 
 class IterativeStrategy(BaseStrategy):
@@ -67,15 +68,16 @@ class IterativeStrategy(BaseStrategy):
         return torch.optim.AdamW(scale_params, lr=self.lr)
 
     def train_dataloader(self, pl_module):
+        dataset = ProcessedDataset(pl_module.tokenizer, pl_module.dataset_name, max_examples=pl_module.max_examples)
         data_collator = DataCollatorForLanguageModeling(tokenizer=pl_module.tokenizer, mlm=False)
         sampler = SamplerWithSpecialFirstBatch(
-            n=len(pl_module.dataset),
+            n=len(dataset),
             first_batch_size=self.grads_in_memory,
             batch_size=pl_module.batch_size,
             shuffle=True
         )
         return torch.utils.data.DataLoader(
-            pl_module.dataset,
+            dataset,
             batch_sampler=sampler,
             num_workers=4,
             persistent_workers=False,
