@@ -1,6 +1,6 @@
 from torch.utils.data import DataLoader
-from transformers import DataCollatorForLanguageModeling
 
+from sah.algorithms.utils.data_collator import DataCollatorForAnswerOnlyLM
 from sah.algorithms.utils.processed_dataset import ProcessedDataset
 
 
@@ -31,7 +31,7 @@ class BaseStrategy:
 
     def train_dataloader(self, pl_module):
         dataset = ProcessedDataset(pl_module.tokenizer, pl_module.dataset_name, max_examples=pl_module.max_examples)
-        data_collator = DataCollatorForLanguageModeling(tokenizer=pl_module.tokenizer, mlm=False)
+        data_collator = DataCollatorForAnswerOnlyLM(tokenizer=pl_module.tokenizer)
 
         return DataLoader(
             dataset,

@@ -6,6 +6,4 @@ class MetaMathFormatter:
         query = example['query']
         answer = example['response']
 
-        text = f"Question: {query}\nResponse: {answer}"
-
-        return {"text": text}
+        return {"question": query, "answer": answer}

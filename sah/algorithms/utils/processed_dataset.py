@@ -27,18 +27,26 @@ class ProcessedDataset(Dataset):
                 print(f"Processed {i}/{total_to_process} examples")
             formatted = formatter(example)
 
-            tokenized = tokenizer(
-                formatted["text"],
-                truncation=True,
-                padding=False,
-                max_length=block_size,
-                return_tensors="pt"
-            )
+            question_text = f"Question: {formatted['question']}\nResponse:"
+            answer_text = " " + formatted['answer']
 
-            if len(tokenized["input_ids"][0]) > 1:
+            question_ids = tokenizer.encode(question_text, add_special_tokens=False)
+            answer_ids = tokenizer.encode(answer_text, add_special_tokens=False)
+
+            full_ids = [tokenizer.bos_token_id] + question_ids + answer_ids
+            if len(full_ids) > block_size:
+                full_ids = full_ids[:block_size]
+
+            question_length = 1 + len(question_ids)
+
+            if len(full_ids) > question_length + 1:
+                labels = full_ids.copy()
+                labels[:question_length] = [-100] * question_length
+
                 self.examples.append({
-                    "input_ids": tokenized["input_ids"][0],
-                    "attention_mask": tokenized["attention_mask"][0]
+                    "input_ids": full_ids,
+                    "attention_mask": [1] * len(full_ids),
+                    "labels": labels
                 })
 
     def __len__(self):
