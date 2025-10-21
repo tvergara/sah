@@ -40,8 +40,8 @@ class IterativeStrategy(BaseStrategy):
         if pl_module.global_step % self.merge_grads_every == 0:
             special_batch = self.sample_special_batch(pl_module)
             merge_grads_into_weights(pl_module)
-            optimizer = pl_module.optimizers()
-            optimizer.state = {}
+            optimizer = pl_module.trainer.optimizers[0]
+            optimizer.state.clear()
             self.update_gradients(pl_module, special_batch)
             activate_linear_layers(pl_module)
 
@@ -134,14 +134,16 @@ def merge_grads_into_weights(pl_module):
     for child in pl_module.model.modules():
         if isinstance(child, ModifiedLinear):
             with torch.no_grad():
-                child.main_weight.data += torch.einsum('i,ijk->jk', child.scale, child.weight_grads)
-                if child.main_bias is not None:
-                    child.main_bias.data += torch.einsum('i,ij->j', child.scale, child.bias_grads)
-
+                weight_diff = torch.einsum('i,ijk->jk', child.scale, child.weight_grads)
+                child.main_weight.data += weight_diff
                 child.weight_grads.zero_()
-                child.scale.data.zero_()
+
                 if child.main_bias is not None:
+                    bias_diff = torch.einsum('i,ij->j', child.scale, child.bias_grads)
+                    child.main_bias.data += bias_diff
                     child.bias_grads.zero_()
+
+                child.scale.data.zero_()
                 child.activated = False
 
 def activate_linear_layers(pl_module):
