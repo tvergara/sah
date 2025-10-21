@@ -8,16 +8,17 @@ from sah.algorithms.utils.processed_dataset import ProcessedDataset
 
 
 class IterativeStrategy(BaseStrategy):
-    def __init__(self, lr, grads_in_memory, in_context_examples=0, merge_grads_every=100):
+    def __init__(self, lr, grads_in_memory, in_context_examples=0, merge_grads_every=100, default_lr=1e-5):
         super().__init__()
         self.lr = lr
         self.grads_in_memory = grads_in_memory
         self.in_context_examples = in_context_examples
         self.merge_grads_every = merge_grads_every
+        self.default_lr = default_lr
 
     def setup(self, pl_module, stage):
         if stage == "fit":
-            replace_linear_layers(self, pl_module.model, self.grads_in_memory)
+            replace_linear_layers(self, pl_module.model, self.grads_in_memory, self.default_lr)
             self.cached_dataset = ProcessedDataset(
                 pl_module.tokenizer,
                 pl_module.dataset_name,
@@ -96,37 +97,45 @@ class IterativeStrategy(BaseStrategy):
         )
 
 
-def replace_linear_layers(pl_module, model, batch_size):
+def replace_linear_layers(pl_module, model, batch_size, default_lr):
     for name, module in model.named_children():
         if isinstance(module, nn.Linear):
-            linear = ModifiedLinear(module, batch_size)
+            linear = ModifiedLinear(module, batch_size, default_lr)
             setattr(model, name, linear)
         else:
-            replace_linear_layers(pl_module, module, batch_size)
+            replace_linear_layers(pl_module, module, batch_size, default_lr)
 
 class ModifiedLinear(nn.Module):
-    def __init__(self, original_linear, grads_in_memory):
+    def __init__(self, original_linear, grads_in_memory, default_lr):
         super().__init__()
 
         self.scale = nn.Parameter(torch.zeros(grads_in_memory), requires_grad=True)
         self.activated = False
+        self.default_lr = default_lr
 
         self.main_weight = nn.Parameter(original_linear.weight.clone())
         self.register_buffer('weight_grads', torch.zeros(grads_in_memory, *self.main_weight.shape, dtype=torch.bfloat16))
+        self.register_buffer('first_moment', torch.zeros(*self.main_weight.shape, dtype=torch.bfloat16))
+        self.register_buffer('second_moment', torch.zeros(*self.main_weight.shape, dtype=torch.bfloat16))
 
         self.main_bias = None
         if original_linear.bias is not None:
             self.main_bias = nn.Parameter(original_linear.bias.clone())
             self.register_buffer('bias_grads', torch.zeros(grads_in_memory, *self.main_bias.shape, dtype=torch.bfloat16))
+            self.register_buffer('first_moment_bias', torch.zeros(*self.main_bias.shape, dtype=torch.bfloat16))
+            self.register_buffer('second_moment_bias', torch.zeros(*self.main_bias.shape, dtype=torch.bfloat16))
 
     def forward(self, x):
         if not self.activated:
             return F.linear(x, self.main_weight, self.main_bias)
 
-        weight = self.main_weight + torch.einsum('i,ijk->jk', self.scale, self.weight_grads)
+        grad = torch.einsum('i,ijk->jk', self.scale, self.weight_grads)
+        weight = self.main_weight - self.default_lr * grad
+
         bias = None
         if self.main_bias is not None:
-            bias = self.main_bias + torch.einsum('i,ij->j', self.scale, self.bias_grads)
+            grad = torch.einsum('i,ij->j', self.scale, self.bias_grads)
+            bias = self.main_bias - self.default_lr * grad
 
         return F.linear(x, weight, bias)
 
@@ -135,15 +144,15 @@ def merge_grads_into_weights(pl_module):
         if isinstance(child, ModifiedLinear):
             with torch.no_grad():
                 weight_diff = torch.einsum('i,ijk->jk', child.scale, child.weight_grads)
-                child.main_weight.data += weight_diff
+                child.main_weight.data -= child.default_lr * weight_diff
                 child.weight_grads.zero_()
 
                 if child.main_bias is not None:
                     bias_diff = torch.einsum('i,ij->j', child.scale, child.bias_grads)
-                    child.main_bias.data += bias_diff
+                    child.main_bias.data -= child.default_lr * bias_diff
                     child.bias_grads.zero_()
 
-                child.scale.data.zero_()
+                child.scale.data.fill_(1)
                 child.activated = False
 
 def activate_linear_layers(pl_module):
