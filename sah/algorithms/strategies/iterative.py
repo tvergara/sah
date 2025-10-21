@@ -8,10 +8,11 @@ from sah.algorithms.utils.processed_dataset import ProcessedDataset
 
 
 class IterativeStrategy(BaseStrategy):
-    def __init__(self, lr, grads_in_memory):
+    def __init__(self, lr, grads_in_memory, in_context_examples=0):
         super().__init__()
         self.lr = lr
         self.grads_in_memory = grads_in_memory
+        self.in_context_examples = in_context_examples
 
     def setup(self, pl_module, stage):
         if stage == "fit":
@@ -31,7 +32,7 @@ class IterativeStrategy(BaseStrategy):
 
         outputs = pl_module.model(**batch)
         loss = outputs.loss
-        pl_module.log("train/loss", loss, on_step=True, on_epoch=False, prog_bar=True)
+        pl_module.log("train/loss", loss, on_step=True, on_epoch=False, prog_bar=True, sync_dist=True, reduce_fx="mean")
 
         scale_params = [p for n, p in pl_module.model.named_parameters() if 'scale' in n]
         all_scales = torch.cat([p.flatten() for p in scale_params])
@@ -68,7 +69,12 @@ class IterativeStrategy(BaseStrategy):
         return torch.optim.AdamW(scale_params, lr=self.lr)
 
     def train_dataloader(self, pl_module):
-        dataset = ProcessedDataset(pl_module.tokenizer, pl_module.dataset_name, max_examples=pl_module.max_examples)
+        dataset = ProcessedDataset(
+            pl_module.tokenizer,
+            pl_module.dataset_name,
+            max_examples=pl_module.max_examples,
+            in_context_examples=self.in_context_examples
+        )
         data_collator = DataCollatorForAnswerOnlyLM(tokenizer=pl_module.tokenizer)
         sampler = SamplerWithSpecialFirstBatch(
             n=len(dataset),
