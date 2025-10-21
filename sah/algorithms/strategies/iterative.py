@@ -8,27 +8,42 @@ from sah.algorithms.utils.processed_dataset import ProcessedDataset
 
 
 class IterativeStrategy(BaseStrategy):
-    def __init__(self, lr, grads_in_memory, in_context_examples=0):
+    def __init__(self, lr, grads_in_memory, in_context_examples=0, merge_grads_every=100):
         super().__init__()
         self.lr = lr
         self.grads_in_memory = grads_in_memory
         self.in_context_examples = in_context_examples
+        self.merge_grads_every = merge_grads_every
 
     def setup(self, pl_module, stage):
         if stage == "fit":
             replace_linear_layers(self, pl_module.model, self.grads_in_memory)
+            self.cached_dataset = ProcessedDataset(
+                pl_module.tokenizer,
+                pl_module.dataset_name,
+                max_examples=pl_module.max_examples,
+                in_context_examples=self.in_context_examples
+            )
 
     def compute_bits(self, pl_module):
         return 0
 
+    def sample_special_batch(self, pl_module):
+        indices = torch.randperm(len(self.cached_dataset))[:self.grads_in_memory].tolist()
+        samples = [self.cached_dataset[i] for i in indices]
+        data_collator = DataCollatorForAnswerOnlyLM(tokenizer=pl_module.tokenizer)
+        batch = data_collator(samples)
+        batch = {k: v.to(pl_module.device) for k, v in batch.items()}
+        return batch
+
     def training_step(self, pl_module, batch, batch_idx):
-        if batch_idx == 0:
+        if pl_module.global_step % self.merge_grads_every == 0:
+            special_batch = self.sample_special_batch(pl_module)
             merge_grads_into_weights(pl_module)
             optimizer = pl_module.optimizers()
             optimizer.state = {}
-            self.update_gradients(pl_module, batch)
+            self.update_gradients(pl_module, special_batch)
             activate_linear_layers(pl_module)
-            return
 
         outputs = pl_module.model(**batch)
         loss = outputs.loss
@@ -69,22 +84,12 @@ class IterativeStrategy(BaseStrategy):
         return torch.optim.AdamW(scale_params, lr=self.lr)
 
     def train_dataloader(self, pl_module):
-        dataset = ProcessedDataset(
-            pl_module.tokenizer,
-            pl_module.dataset_name,
-            max_examples=pl_module.max_examples,
-            in_context_examples=self.in_context_examples
-        )
         data_collator = DataCollatorForAnswerOnlyLM(tokenizer=pl_module.tokenizer)
-        sampler = SamplerWithSpecialFirstBatch(
-            n=len(dataset),
-            first_batch_size=self.grads_in_memory,
-            batch_size=pl_module.batch_size,
-            shuffle=True
-        )
+
         return torch.utils.data.DataLoader(
-            dataset,
-            batch_sampler=sampler,
+            self.cached_dataset,
+            batch_size=pl_module.batch_size,
+            shuffle=True,
             num_workers=4,
             persistent_workers=False,
             collate_fn=data_collator,
@@ -143,19 +148,3 @@ def activate_linear_layers(pl_module):
     for child in pl_module.model.modules():
         if isinstance(child, ModifiedLinear):
             child.activated = True
-
-class SamplerWithSpecialFirstBatch:
-    def __init__(self, n, first_batch_size, batch_size, shuffle=True):
-        self.n = n
-        self.first_batch_size = first_batch_size
-        self.batch_size = batch_size
-        self.shuffle = shuffle
-
-    def __iter__(self):
-        indices = torch.randperm(self.n).tolist() if self.shuffle else list(range(self.n))
-        yield indices[:self.first_batch_size]
-        for i in range(self.first_batch_size, self.n, self.batch_size):
-            yield indices[i:i + self.batch_size]
-
-    def __len__(self):
-        return 1 + (self.n - self.first_batch_size + self.batch_size - 1) // self.batch_size

@@ -4,3 +4,4 @@ _convert_: object
 lr: 1e-5
 grads_in_memory: 1
 in_context_examples: 1
+merge_grads_every: 100
