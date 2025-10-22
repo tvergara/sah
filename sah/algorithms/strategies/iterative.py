@@ -117,6 +117,10 @@ class ModifiedLinear(nn.Module):
         self.register_buffer('weight_grads', torch.zeros(grads_in_memory, *self.main_weight.shape, dtype=torch.bfloat16))
         self.register_buffer('first_moment', torch.zeros(*self.main_weight.shape, dtype=torch.bfloat16))
         self.register_buffer('second_moment', torch.zeros(*self.main_weight.shape, dtype=torch.bfloat16))
+        self.beta_1 = 0.9
+        self.beta_2 = 0.999
+        self.time = 0
+        self.epsilon = 1e-8
 
         self.main_bias = None
         if original_linear.bias is not None:
@@ -130,12 +134,22 @@ class ModifiedLinear(nn.Module):
             return F.linear(x, self.main_weight, self.main_bias)
 
         grad = torch.einsum('i,ijk->jk', self.scale, self.weight_grads)
-        weight = self.main_weight - self.default_lr * grad
+        first_moment = self.beta_1 * self.first_moment + (1 - self.beta_1) * grad
+        second_moment = self.beta_2 * self.second_moment + (1 - self.beta_2) * (grad ** 2)
+        first_moment = first_moment / (1 - self.beta_1 ** self.time)
+        second_moment = second_moment / (1 - self.beta_2 ** self.time)
+
+        weight = self.main_weight - self.default_lr * first_moment / (torch.sqrt(second_moment) + self.epsilon)
 
         bias = None
         if self.main_bias is not None:
-            grad = torch.einsum('i,ij->j', self.scale, self.bias_grads)
-            bias = self.main_bias - self.default_lr * grad
+            grad_bias = torch.einsum('i,ij->j', self.scale, self.bias_grads)
+            first_moment_bias = self.beta_1 * self.first_moment_bias + (1 - self.beta_1) * grad_bias
+            second_moment_bias = self.beta_2 * self.second_moment_bias + (1 - self.beta_2) * (grad_bias ** 2)
+            first_moment_bias = first_moment_bias / (1 - self.beta_1 ** self.time)
+            second_moment_bias = second_moment_bias / (1 - self.beta_2 ** self.time)
+
+            bias = self.main_bias - self.default_lr * first_moment_bias / (torch.sqrt(second_moment_bias) + self.epsilon)
 
         return F.linear(x, weight, bias)
 
@@ -143,17 +157,30 @@ def merge_grads_into_weights(pl_module):
     for child in pl_module.model.modules():
         if isinstance(child, ModifiedLinear):
             with torch.no_grad():
-                weight_diff = torch.einsum('i,ijk->jk', child.scale, child.weight_grads)
-                child.main_weight.data -= child.default_lr * weight_diff
+                grad = torch.einsum('i,ijk->jk', child.scale, child.weight_grads)
+                child.first_moment.mul_(child.beta_1).add_(grad, alpha=(1 - child.beta_1))
+                child.second_moment.mul_(child.beta_2).addcmul_(grad, grad, value=(1 - child.beta_2))
+
+                first_moment_corrected = child.first_moment / (1 - child.beta_1 ** (child.time + 1))
+                second_moment_corrected = child.second_moment / (1 - child.beta_2 ** (child.time + 1))
+
+                child.main_weight.data -= child.default_lr * first_moment_corrected / (torch.sqrt(second_moment_corrected) + child.epsilon)
                 child.weight_grads.zero_()
 
                 if child.main_bias is not None:
-                    bias_diff = torch.einsum('i,ij->j', child.scale, child.bias_grads)
-                    child.main_bias.data -= child.default_lr * bias_diff
+                    bias_grad = torch.einsum('i,ij->j', child.scale, child.bias_grads)
+                    child.first_moment_bias.mul_(child.beta_1).add_(bias_grad, alpha=(1 - child.beta_1))
+                    child.second_moment_bias.mul_(child.beta_2).addcmul_(bias_grad, bias_grad, value=(1 - child.beta_2))
+
+                    first_moment_bias_corrected = child.first_moment_bias / (1 - child.beta_1 ** (child.time + 1))
+                    second_moment_bias_corrected = child.second_moment_bias / (1 - child.beta_2 ** (child.time + 1))
+
+                    child.main_bias.data -= child.default_lr * first_moment_bias_corrected / (torch.sqrt(second_moment_bias_corrected) + child.epsilon)
                     child.bias_grads.zero_()
 
                 child.scale.data.fill_(1)
                 child.activated = False
+                child.time += 1
 
 def activate_linear_layers(pl_module):
     for child in pl_module.model.modules():
