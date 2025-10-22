@@ -26,24 +26,31 @@ class IterativeStrategy(BaseStrategy):
                 in_context_examples=self.in_context_examples
             )
 
+            data_collator = DataCollatorForAnswerOnlyLM(tokenizer=pl_module.tokenizer)
+            self.special_dataloader = torch.utils.data.DataLoader(
+                self.cached_dataset,
+                batch_size=self.grads_in_memory,
+                shuffle=True,
+                num_workers=0,
+                collate_fn=data_collator,
+            )
+            self.special_dataloader_iter = iter(self.special_dataloader)
+
     def compute_bits(self, pl_module):
         return 0
 
-    def sample_special_batch(self, pl_module):
-        indices = torch.randperm(len(self.cached_dataset))[:self.grads_in_memory].tolist()
-        samples = [self.cached_dataset[i] for i in indices]
-        data_collator = DataCollatorForAnswerOnlyLM(tokenizer=pl_module.tokenizer)
-        batch = data_collator(samples)
+    def get_next_special_batch(self, pl_module):
+        batch = next(self.special_dataloader_iter)
         batch = {k: v.to(pl_module.device) for k, v in batch.items()}
         return batch
 
     def training_step(self, pl_module, batch, batch_idx):
         if pl_module.global_step % self.merge_grads_every == 0:
-            special_batch = self.sample_special_batch(pl_module)
+            special_batch = self.get_next_special_batch(pl_module)
             merge_grads_into_weights(pl_module)
             optimizer = pl_module.trainer.optimizers[0]
             optimizer.state.clear()
-            self.update_gradients(pl_module, special_batch)
+            loss = self.update_gradients(pl_module, special_batch)
             activate_linear_layers(pl_module)
 
         outputs = pl_module.model(**batch)
@@ -59,9 +66,11 @@ class IterativeStrategy(BaseStrategy):
 
     def update_gradients(self, pl_module, batch):
         batch_size = batch["input_ids"].size(0)
+        total_loss = 0.0
         for i in range(batch_size):
             single_batch = {k: v[i:i+1] for k, v in batch.items()}
             outputs = pl_module.model(**single_batch)
+            total_loss += outputs.loss.item()
 
             original_params_dict = {n: p for n, p in pl_module.model.named_parameters() if '.main_' in n}
             grads = torch.autograd.grad(outputs.loss, list(original_params_dict.values()), retain_graph=False)
@@ -79,6 +88,9 @@ class IterativeStrategy(BaseStrategy):
                             module.bias_grads[i] = grad_dict[bias_key].detach().data.to(torch.bfloat16)
 
             del outputs, grads, grad_dict, single_batch
+
+        avg_loss = total_loss / batch_size
+        return avg_loss
 
     def configure_optimizers(self, pl_module):
         scale_params = [p for n, p in pl_module.model.named_parameters() if 'scale' in n]

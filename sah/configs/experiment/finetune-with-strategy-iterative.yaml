@@ -9,10 +9,14 @@ trainer:
   callbacks:
     model_checkpoint: null
   max_epochs: 10
+  # accumulate_grad_batches: 1
 
 algorithm:
-  batch_size: 5
+  batch_size: 6
   experiment_name: llama-iterative
   strategy:
-    lr: 1e-5
-    grads_in_memory: 4
+    lr: 1e-6
+    grads_in_memory: 6
+    in_context_examples: 1
+    merge_grads_every: 1
+    default_lr: 1e-5
