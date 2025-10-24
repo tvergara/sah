@@ -1,5 +1,6 @@
 import re
 
+import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 
@@ -71,6 +72,24 @@ class BaseStrategy:
             accuracy = correct / total
             pl_module.log("val/accuracy", accuracy, prog_bar=True)
             pl_module.log("val/bits", self.bits, prog_bar=True)
+
+            experiment_id = pl_module.trainer.logger.experiment.id
+            experiment_name = pl_module.experiment_name
+            result_file = pl_module.result_file
+
+            if result_file.exists():
+                df = pd.read_csv(result_file)
+            else:
+                df = pd.DataFrame(columns=["experiment_name", "experiment_id", "accuracy", "bits"])
+
+            new_row = pd.DataFrame([{
+                "experiment_name": experiment_name,
+                "experiment_id": experiment_id,
+                "accuracy": accuracy.item() if hasattr(accuracy, 'item') else accuracy,
+                "bits": self.bits
+            }])
+            df = pd.concat([df, new_row], ignore_index=True)
+            df.to_csv(result_file, index=False)
 
     def configure_optimizers(self, pl_module):
         return None
