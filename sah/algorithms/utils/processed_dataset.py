@@ -7,7 +7,7 @@ from sah.algorithms.formatters import get_dataset_formatter
 
 
 class ProcessedDataset(Dataset):
-    def __init__(self, tokenizer, dataset_name, block_size=2600, max_examples=None, in_context_examples=0):
+    def __init__(self, tokenizer, dataset_name, block_size=1548, max_examples=None, in_context_examples=0):
         self.tokenizer = tokenizer
         self.block_size = block_size
         self.name = dataset_name
