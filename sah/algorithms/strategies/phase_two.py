@@ -41,6 +41,12 @@ class PhaseTwoStrategy(BaseStrategy):
             diffs = torch.load(self.diffs_file)
             replace_lora_layers(pl_module.model, self.grads_in_memory, diffs)
 
+            num_lora_layers = sum(1 for key in diffs.keys() if key.endswith('.lora_A.default.weight'))
+            gradient_bits = diffs['bits'][self.grads_in_memory - 1]
+            alpha_bits = 32 * num_lora_layers * self.grads_in_memory
+            self.bits = gradient_bits + alpha_bits
+            print(f'Ratio (gradient_bits / alpha_bits): {gradient_bits / alpha_bits:.4f}')
+
     def configure_optimizers(self, pl_module):
         return torch.optim.AdamW(pl_module.model.parameters(), lr=self.lr)
 
