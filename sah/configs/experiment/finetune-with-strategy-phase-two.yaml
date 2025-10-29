@@ -1,0 +1,21 @@
+# @package _global_
+
+defaults:
+  - finetune-with-strategy
+  - override /algorithm/strategy: phase_two
+
+trainer:
+  enable_checkpointing: false
+  callbacks:
+    model_checkpoint: null
+    early_stopping: null
+  val_check_interval: 200
+  limit_val_batches: 1
+  num_sanity_val_steps: 1
+
+algorithm:
+  batch_size: 12
+  experiment_name: phase-two
+  strategy:
+    r: 2
+    lr: 5e-3
