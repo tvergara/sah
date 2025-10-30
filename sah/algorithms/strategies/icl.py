@@ -67,6 +67,10 @@ class ICLStrategy(BaseStrategy):
         )
         input_ids = tokenized["input_ids"].to(pl_module.device)
         attention_mask = tokenized["attention_mask"].to(pl_module.device)
+        if input_ids.size(1) > pl_module.max_length:
+            pl_module.trainer.should_stop = True
+            self.updated = False
+            return
         with torch.no_grad():
             max_length = min(pl_module.max_length, input_ids.size(1) + 512)
             generated = pl_module.model.generate(
@@ -144,6 +148,8 @@ class ICLStrategy(BaseStrategy):
         )
 
     def on_validation_epoch_end(self, pl_module):
+        if not self.updated:
+            raise StopTrainingError
         self.updated = False
         return super().on_validation_epoch_end(pl_module)
 
