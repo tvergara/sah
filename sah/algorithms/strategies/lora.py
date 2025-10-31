@@ -25,6 +25,10 @@ class LoRAStrategy(BaseStrategy):
             pl_module.model = get_peft_model(pl_module.model, lora_config)
             pl_module.model.print_trainable_parameters()
 
+    def on_train_start(self, pl_module):
+        self.bits = self.compute_bits(pl_module)
+        return super().on_train_start(pl_module)
+
     def configure_optimizers(self, pl_module):
         return torch.optim.AdamW(pl_module.model.parameters(), lr=self.lr)
 
