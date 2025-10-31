@@ -1,0 +1,19 @@
+# @package _global_
+
+defaults:
+  - finetune-with-strategy
+  - override /algorithm/strategy: phase_one
+
+trainer:
+  callbacks:
+    model_checkpoint: null
+    early_stopping: null
+  val_check_interval: 10
+  limit_val_batches: 1
+
+algorithm:
+  batch_size: 6
+  experiment_name: phase-one
+  strategy:
+    r: 2
+    lr: 1e-3

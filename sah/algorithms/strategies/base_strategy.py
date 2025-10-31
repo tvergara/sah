@@ -97,6 +97,9 @@ class BaseStrategy:
     def on_train_batch_end(self, pl_module, outputs, batch, batch_idx):
         pass
 
+    def on_train_end(self, pl_module):
+        pass
+
     def train_dataloader(self, pl_module):
         dataset = ProcessedDataset(pl_module.tokenizer, pl_module.dataset_name, max_examples=pl_module.max_examples)
         data_collator = DataCollatorForAnswerOnlyLM(tokenizer=pl_module.tokenizer)

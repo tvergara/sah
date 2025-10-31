@@ -1,0 +1,8 @@
+_target_: sah.algorithms.strategies.phase_one.PhaseOneStrategy
+_recursive_: false
+_convert_: object
+lr: 0.001
+r: 8
+lora_alpha: 8
+lora_dropout: 0.0
+diffs_file: ${hydra:runtime.output_dir}/diffs
