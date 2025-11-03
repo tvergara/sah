@@ -1,3 +1,4 @@
+import math
 from decimal import Decimal, getcontext
 
 import torch
@@ -96,6 +97,60 @@ def encode(model, input_ids_batch, attention_mask_batch=None):
         compressed_batch.append((compressed_value, interval_width))
 
     return compressed_batch
+
+
+def compute_bits_from_logits(logits, input_ids, attention_mask=None, fast=True):
+    if fast:
+        return compute_bits_from_logits_fast(logits, input_ids, attention_mask)
+
+    probs = torch.softmax(logits, dim=-1)
+
+    total_bits = 0
+    log_2 = Decimal(2).ln()
+
+    for batch_idx in range(input_ids.shape[0]):
+        tokens = input_ids[batch_idx].cpu().tolist()
+
+        if attention_mask is not None:
+            mask = attention_mask[batch_idx].cpu().tolist()
+            actual_length = sum(mask)
+            tokens = tokens[:actual_length]
+            sequence_probs = probs[batch_idx, :actual_length]
+        else:
+            sequence_probs = probs[batch_idx]
+
+        compressed_value, interval_width = encode_single(tokens, sequence_probs)
+
+        if interval_width > 0:
+            bits = math.ceil(float(-(interval_width.ln() / log_2)))
+            total_bits += bits
+
+    return total_bits
+
+
+def compute_bits_from_logits_fast(logits, input_ids, attention_mask=None):
+    log_probs = torch.log_softmax(logits, dim=-1)
+
+    batch_size, seq_len = input_ids.shape
+
+    logits_for_pred = log_probs[:, :-1, :]
+    target_tokens = input_ids[:, 1:]
+
+    token_log_probs = logits_for_pred[
+        torch.arange(batch_size, device=logits.device).unsqueeze(1),
+        torch.arange(seq_len - 1, device=logits.device).unsqueeze(0),
+        target_tokens
+    ]
+
+    if attention_mask is not None:
+        mask = attention_mask[:, 1:]
+        token_log_probs = token_log_probs * mask
+
+    total_log_prob = token_log_probs.sum()
+
+    bits = (-total_log_prob / math.log(2)).item()
+
+    return int(math.ceil(bits))
 
 
 def decode(model, compressed_batch, num_tokens_list):

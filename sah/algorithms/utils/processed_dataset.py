@@ -13,14 +13,14 @@ class ProcessedDataset(Dataset):
         self.name = dataset_name
 
         print("Loading dataset...")
-        raw_dataset = load_dataset(self.name, split="train")
+        split_str = f"train[:{max_examples}]" if max_examples else "train"
+        raw_dataset = load_dataset(self.name, split=split_str)
         print(f"Dataset loaded: {len(raw_dataset)} examples")
         formatter = get_dataset_formatter(self.name)
 
         self.examples = []
         self.in_context_examples = in_context_examples
         print("Processing examples...")
-        total_to_process = min(len(raw_dataset), max_examples) if max_examples else len(raw_dataset)
 
         self.raw_dataset = list(raw_dataset)
 
@@ -30,11 +30,8 @@ class ProcessedDataset(Dataset):
             self.context_samples = []
 
         for i, example in enumerate(raw_dataset):
-            if max_examples and i >= max_examples:
-                break
-
             if i % 10000 == 0:
-                print(f"Processed {i}/{total_to_process} examples")
+                print(f"Processed {i}/{len(raw_dataset)} examples")
             formatted = formatter(example)
 
             context_text = ""
@@ -53,7 +50,7 @@ class ProcessedDataset(Dataset):
             if len(full_ids) > block_size:
                 full_ids = full_ids[:block_size]
 
-            question_length = 1 + len(question_ids)
+            question_length = min(1 + len(question_ids), len(full_ids))
 
             if len(full_ids) > question_length + 1:
                 labels = full_ids.copy()

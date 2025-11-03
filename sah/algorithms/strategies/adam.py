@@ -1,11 +1,9 @@
 
-import math
-from decimal import Decimal
-
 import torch
+import torch.distributed as dist
 
 from sah.algorithms.strategies.base_strategy import BaseStrategy
-from sah.algorithms.utils.arithmetic_coding import encode
+from sah.algorithms.utils.arithmetic_coding import compute_bits_from_logits
 
 
 class AdamStrategy(BaseStrategy):
@@ -18,22 +16,23 @@ class AdamStrategy(BaseStrategy):
     def configure_optimizers(self, pl_module):
         return torch.optim.Adam(pl_module.model.parameters(), lr=self.lr)
 
-    def on_train_batch_start(self, pl_module, batch, batch_idx):
-        input_ids = batch['input_ids']
-        attention_mask = batch['attention_mask']
+    def training_step(self, pl_module, batch, batch_idx):
+        outputs = pl_module.model(**batch)
+        loss = outputs.loss
 
         with torch.no_grad():
-                compressed_batch = encode(pl_module.model, input_ids, attention_mask)
+            total_bits = compute_bits_from_logits(
+                outputs.logits,
+                batch['input_ids'],
+                batch.get('attention_mask')
+            )
 
-        total_bits = 0
-        log_2 = Decimal(2).ln()
-        for compressed_value, interval_width in compressed_batch:
-            if interval_width > 0:
-                bits = math.ceil(float(-(interval_width.ln() / log_2)))
-                total_bits += bits
-        self.bits += total_bits
+            if dist.is_initialized():
+                total_bits_tensor = torch.tensor(total_bits, dtype=torch.float32, device=pl_module.device)
+                dist.all_reduce(total_bits_tensor, op=dist.ReduceOp.SUM)
+                total_bits = int(total_bits_tensor.item())
 
-        return super().on_train_batch_start(pl_module, batch, batch_idx)
+            self.bits += total_bits
 
-    def training_step(self, pl_module, batch, batch_idx):
-        return super().training_step(pl_module, batch, batch_idx)
+        pl_module.log("train/loss", loss, on_step=True, on_epoch=False, prog_bar=True)
+        return loss

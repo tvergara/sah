@@ -14,7 +14,6 @@ class FinetuneWithStrategy(LightningModule):
         model_config: NetworkConfig,
         strategy: BaseStrategy,
         dataset_name: str,
-        val_dataset_name: list[str],
         val_batch_size: int,
         max_examples: int | None,
         batch_size: int,
@@ -30,7 +29,6 @@ class FinetuneWithStrategy(LightningModule):
         self.model = hydra_zen.instantiate(model_config)
         self.max_examples = max_examples
         self.dataset_name = dataset_name
-        self.val_dataset_name = val_dataset_name
         self.strategy = strategy
         self.batch_size = batch_size
         self.val_batch_size = val_batch_size

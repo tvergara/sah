@@ -1,12 +1,8 @@
-import re
-
 import pandas as pd
-import torch
 from torch.utils.data import DataLoader
 
+from sah.algorithms.dataset_handlers import get_dataset_handler
 from sah.algorithms.utils.data_collator import DataCollatorForAnswerOnlyLM
-from sah.algorithms.utils.processed_dataset import ProcessedDataset
-from sah.algorithms.utils.processed_validation_dataset import ProcessedValidationDataset
 
 
 class BaseStrategy:
@@ -14,7 +10,12 @@ class BaseStrategy:
         self.bits = 0
 
     def setup(self, pl_module, stage):
-        pass
+        self.dataset_handler = get_dataset_handler(
+            pl_module.dataset_name,
+            pl_module.tokenizer,
+            block_size=pl_module.max_length,
+            max_examples=pl_module.max_examples
+        )
 
     def on_train_start(self, pl_module):
         pass
@@ -29,50 +30,20 @@ class BaseStrategy:
         return loss
 
     def validation_step(self, pl_module, batch, batch_idx):
-        input_ids = batch['input_ids']
-        attention_mask = batch['attention_mask']
+        metrics = self.dataset_handler.validate_batch(pl_module, batch, batch_idx)
 
-        with torch.no_grad():
-            generated = pl_module.model.generate(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                max_length=pl_module.max_length,
-                do_sample=False,
-                pad_token_id=pl_module.tokenizer.eos_token_id
-            )
-
-        correct_count = 0
-        total_count = 0
-
-        for i, gen_tokens in enumerate(generated):
-            decoded = pl_module.tokenizer.decode(gen_tokens, skip_special_tokens=True)
-
-            pattern = r'answer is: ([\d,]+)'
-
-            extracted_answer = ""
-            match = re.search(pattern, decoded, re.IGNORECASE)
-            if match:
-                extracted_answer = match.group(1).replace(',', '')
-
-            expected_answer = batch['expected_answer'][i]
-            is_correct = extracted_answer == expected_answer
-
-            if is_correct:
-                correct_count += 1
-            total_count += 1
-
-        pl_module.log("val/correct_count", float(correct_count), on_step=False, on_epoch=True, sync_dist=True, reduce_fx="sum")
-        pl_module.log("val/total_count", float(total_count), on_step=False, on_epoch=True, sync_dist=True, reduce_fx="sum")
+        for key, value in metrics.items():
+            if key in ["correct_count", "total_count"]:
+                pl_module.log(f"val/{key}", value, on_step=False, on_epoch=True, sync_dist=True, reduce_fx="sum")
+            else:
+                pl_module.log(f"val/{key}", value, on_step=False, on_epoch=True, sync_dist=True)
 
     def on_validation_epoch_end(self, pl_module):
-        correct = pl_module.trainer.logged_metrics.get("val/correct_count", 0)
-        total = pl_module.trainer.logged_metrics.get("val/total_count", 0)
+        pl_module.log("val/bits", self.bits, prog_bar=True)
 
-        if total > 0:
-            accuracy = correct / total
-            pl_module.log("val/accuracy", accuracy, prog_bar=True)
-            pl_module.log("val/bits", self.bits, prog_bar=True)
+        performance = pl_module.trainer.logged_metrics.get("val/performance", None)
 
+        if performance is not None:
             experiment_id = pl_module.trainer.logger.experiment.id
             experiment_name = pl_module.experiment_name
             result_file = pl_module.result_file
@@ -80,12 +51,12 @@ class BaseStrategy:
             if result_file.exists():
                 df = pd.read_csv(result_file)
             else:
-                df = pd.DataFrame(columns=["experiment_name", "experiment_id", "accuracy", "bits"])
+                df = pd.DataFrame(columns=["experiment_name", "experiment_id", "performance", "bits"])
 
             new_row = pd.DataFrame([{
                 "experiment_name": experiment_name,
                 "experiment_id": experiment_id,
-                "accuracy": accuracy.item() if hasattr(accuracy, 'item') else accuracy,
+                "performance": performance.item() if hasattr(performance, 'item') else performance,
                 "bits": self.bits
             }])
             df = pd.concat([df, new_row], ignore_index=True)
@@ -101,7 +72,7 @@ class BaseStrategy:
         pass
 
     def train_dataloader(self, pl_module):
-        dataset = ProcessedDataset(pl_module.tokenizer, pl_module.dataset_name, max_examples=pl_module.max_examples)
+        dataset = self.dataset_handler.get_train_dataset()
         data_collator = DataCollatorForAnswerOnlyLM(tokenizer=pl_module.tokenizer)
 
         return DataLoader(
@@ -114,7 +85,10 @@ class BaseStrategy:
         )
 
     def val_dataloader(self, pl_module):
-        dataset = ProcessedValidationDataset(pl_module.tokenizer, pl_module.val_dataset_name, max_examples=pl_module.max_examples)
+        dataset = self.dataset_handler.get_val_dataset()
+        data_collator = DataCollatorForAnswerOnlyLM(tokenizer=pl_module.tokenizer)
+
+        use_collator = 'labels' in dataset[0]
 
         return DataLoader(
             dataset,
@@ -122,4 +96,5 @@ class BaseStrategy:
             shuffle=False,
             num_workers=4,
             persistent_workers=True,
+            collate_fn=data_collator if use_collator else None,
         )

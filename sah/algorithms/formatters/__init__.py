@@ -1,6 +1,7 @@
 from .gpt4all_formatter import Gpt4allFormatter
 from .lima_formatter import LimaFormatter
 from .meta_math_formatter import MetaMathFormatter
+from .open_thoughts_formatter import OpenThoughtsFormatter
 from .xsum_formatter import XsumFormatter
 
 
@@ -13,6 +14,8 @@ def get_dataset_formatter(dataset_path: str):
         return LimaFormatter()
     if dataset_path == "meta-math/MetaMathQA":
         return MetaMathFormatter()
+    if dataset_path == "open-thoughts/OpenThoughts3-1.2M":
+        return OpenThoughtsFormatter()
 
     return DefaultFormatter()
 
