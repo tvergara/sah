@@ -5,11 +5,16 @@ defaults:
   - override /algorithm/strategy: adam
 
 trainer:
+  enable_checkpointing: false
   callbacks:
-    model_checkpoint:
-      filename: adam
-  devices: 2
+    model_checkpoint: null
+    early_stopping: null
+  val_check_interval: 20
+  limit_val_batches: 2
+
 
 algorithm:
-  batch_size: 6
+  batch_size: 2
   experiment_name: adam
+  strategy:
+    lr: 1e-5

@@ -10,16 +10,9 @@ model_config:
   _target_: sah.algorithms.utils.data_classes.NetworkConfig
   _recursive_: false
   _convert_: object
-  # pretrained_model_name_or_path: meta-llama/Llama-3.2-3B
-  # pretrained_model_name_or_path: Qwen/Qwen2.5-1.5B
-  pretrained_model_name_or_path: HuggingFaceTB/SmolLM2-1.7B
 defaults:
   - strategy: iterative
-dataset_name: meta-math/MetaMathQA
-val_dataset_name: [gsm8k, main]
-max_examples: null
-batch_size: 1
-val_batch_size: 128
-max_length: 512
+  - model: qwen
+  - dataset: metamath
 result_file: ${hydra:runtime.output_dir}/results.csv
 experiment_name: default_name

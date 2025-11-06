@@ -1,4 +1,5 @@
 import pandas as pd
+import torch.distributed as dist
 from torch.utils.data import DataLoader
 
 from sah.algorithms.dataset_handlers import get_dataset_handler
@@ -41,21 +42,28 @@ class BaseStrategy:
     def on_validation_epoch_end(self, pl_module):
         pl_module.log("val/bits", self.bits, prog_bar=True)
 
+        if dist.is_initialized() and dist.get_rank() != 0:
+            return
+
         performance = pl_module.trainer.logged_metrics.get("val/performance", None)
 
         if performance is not None:
             experiment_id = pl_module.trainer.logger.experiment.id
             experiment_name = pl_module.experiment_name
             result_file = pl_module.result_file
+            dataset_name = pl_module.dataset_name
+            model_name = pl_module.model_config.pretrained_model_name_or_path
 
             if result_file.exists():
                 df = pd.read_csv(result_file)
             else:
-                df = pd.DataFrame(columns=["experiment_name", "experiment_id", "performance", "bits"])
+                df = pd.DataFrame(columns=["experiment_name", "experiment_id", "dataset_name", "model_name", "performance", "bits"])
 
             new_row = pd.DataFrame([{
                 "experiment_name": experiment_name,
                 "experiment_id": experiment_id,
+                "dataset_name": dataset_name,
+                "model_name": model_name,
                 "performance": performance.item() if hasattr(performance, 'item') else performance,
                 "bits": self.bits
             }])

@@ -9,6 +9,7 @@ class BaseDatasetHandler:
         self.dataset_name = dataset_name
         self.block_size = block_size
         self.max_examples = max_examples
+        self.validation_data = None
 
     def format_example(self, example):
         raise NotImplementedError
@@ -20,6 +21,9 @@ class BaseDatasetHandler:
         raise NotImplementedError
 
     def validate_batch(self, pl_module, batch, batch_idx):
+        raise NotImplementedError
+
+    def get_raw_val_data(self):
         raise NotImplementedError
 
 
@@ -40,11 +44,17 @@ class ProcessedTrainDataset(Dataset):
             question_ids = tokenizer.encode(question_text, add_special_tokens=False)
             answer_ids = tokenizer.encode(answer_text, add_special_tokens=False)
 
-            full_ids = [tokenizer.bos_token_id] + question_ids + answer_ids
+            if tokenizer.bos_token_id is not None:
+                full_ids = [tokenizer.bos_token_id] + question_ids + answer_ids
+                question_length_offset = 1
+            else:
+                full_ids = question_ids + answer_ids
+                question_length_offset = 0
+
             if len(full_ids) > block_size:
                 full_ids = full_ids[:block_size]
 
-            question_length = min(1 + len(question_ids), len(full_ids))
+            question_length = min(question_length_offset + len(question_ids), len(full_ids))
 
             if len(full_ids) > question_length + 1:
                 labels = full_ids.copy()

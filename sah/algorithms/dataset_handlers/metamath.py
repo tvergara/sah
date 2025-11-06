@@ -48,6 +48,30 @@ class MetaMathHandler(BaseDatasetHandler):
 
         return GenerationValDataset(tokenized['input_ids'], tokenized['attention_mask'], answers)
 
+    def get_raw_val_data(self):
+        if self.validation_data is None:
+            raw_dataset = load_dataset("gsm8k", "main", split="test")
+            prompts = []
+            answers = []
+
+            for item in raw_dataset:
+                question = item['question']
+                answer = item['answer']
+
+                answer_match = re.search(r'#### ([\d,]+)', answer)
+                numerical_answer = answer_match.group(1).replace(',', '') if answer_match else ""
+
+                prompt = f"Question: {question}\nResponse:"
+                prompts.append(prompt)
+                answers.append(numerical_answer)
+
+            self.validation_data = [
+                {"question": q, "expected_answer": a}
+                for q, a in zip(prompts, answers)
+            ]
+
+        return self.validation_data
+
     def validate_batch(self, pl_module, batch, batch_idx):
         input_ids = batch['input_ids']
         attention_mask = batch['attention_mask']
@@ -56,18 +80,19 @@ class MetaMathHandler(BaseDatasetHandler):
             generated = pl_module.model.generate(
                 input_ids=input_ids,
                 attention_mask=attention_mask,
-                max_length=pl_module.max_length,
+                max_new_tokens=pl_module.max_length,
                 do_sample=False,
                 pad_token_id=self.tokenizer.eos_token_id
             )
 
         correct_count = 0
         total_count = 0
+        decoding_starts = batch['input_ids'].shape[1]
 
         for i, gen_tokens in enumerate(generated):
-            decoded = self.tokenizer.decode(gen_tokens, skip_special_tokens=True)
+            decoded = self.tokenizer.decode(gen_tokens[decoding_starts:], skip_special_tokens=True)
 
-            pattern = r'answer is: ([\d,]+)'
+            pattern = r'answer is:? ([\d,]+)'
             extracted_answer = ""
             match = re.search(pattern, decoded, re.IGNORECASE)
             if match:

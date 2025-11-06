@@ -1,14 +1,15 @@
 import math
-import re
 from decimal import Decimal
 
 import torch
-from datasets import load_dataset
 from torch.utils.data import DataLoader, Dataset
 
-from sah.algorithms.formatters import get_dataset_formatter
 from sah.algorithms.strategies.base_strategy import BaseStrategy
 from sah.algorithms.utils.arithmetic_coding import encode
+
+
+class StopTrainingError(Exception):
+    pass
 
 
 class ICLStrategy(BaseStrategy):
@@ -19,6 +20,7 @@ class ICLStrategy(BaseStrategy):
         self.updated = True
 
     def setup(self, pl_module, stage):
+        super().setup(pl_module, stage)
         pl_module.model = pl_module.model.eval()
 
     def on_train_start(self, pl_module):
@@ -26,11 +28,9 @@ class ICLStrategy(BaseStrategy):
         return super().on_train_start(pl_module)
 
     def training_step(self, pl_module, batch, batch_idx):
-        # sample = batch["input_ids"][0]
-        new_prompt = self.prompt + batch[0]
+        text = batch["text"][0]
+        new_prompt = self.prompt + text
         encoded = pl_module.tokenizer.encode(new_prompt, add_special_tokens=False)
-        if len(encoded) > pl_module.max_length:
-            return None
         pl_module.log(
             "train/context_length",
             float(len(encoded)),
@@ -38,6 +38,7 @@ class ICLStrategy(BaseStrategy):
             on_epoch=True,
             prog_bar=True,
             reduce_fx="max",
+            batch_size=1,
         )
         self.prompt = new_prompt
         self.updated = True
@@ -56,6 +57,7 @@ class ICLStrategy(BaseStrategy):
     def validation_step(self, pl_module, batch, batch_idx):
         if not self.updated:
             return
+
         questions = batch["question"]
         full_prompts = [self.prompt + q for q in questions]
         tokenized = pl_module.tokenizer(
@@ -67,64 +69,25 @@ class ICLStrategy(BaseStrategy):
         )
         input_ids = tokenized["input_ids"].to(pl_module.device)
         attention_mask = tokenized["attention_mask"].to(pl_module.device)
-        if input_ids.size(1) > pl_module.max_length:
-            pl_module.trainer.should_stop = True
-            self.updated = False
-            return
-        with torch.no_grad():
-            max_length = min(pl_module.max_length, input_ids.size(1) + 512)
-            generated = pl_module.model.generate(
-                input_ids=input_ids,
-                attention_mask=attention_mask,
-                max_length=max_length,
-                do_sample=False,
-                pad_token_id=pl_module.tokenizer.eos_token_id,
-            )
 
-        correct_count = 0
-        total_count = 0
-        context_length = len(self.prompt)
-        pattern = r"answer is: ([\d,]+)"
+        prepared_batch = {
+            "input_ids": input_ids,
+            "attention_mask": attention_mask,
+            "expected_answer": batch["expected_answer"]
+        }
 
-        for i, gen_tokens in enumerate(generated):
-            decoded = pl_module.tokenizer.decode(gen_tokens, skip_special_tokens=True)[
-                context_length:
-            ]
+        metrics = self.dataset_handler.validate_batch(pl_module, prepared_batch, batch_idx)
+        batch_size = len(questions)
 
-            extracted_answer = ""
-            match = re.search(pattern, decoded, re.IGNORECASE)
-            if match:
-                extracted_answer = match.group(1).replace(",", "")
-
-            expected_answer = batch["expected_answer"][i]
-            is_correct = extracted_answer == expected_answer
-
-            if is_correct:
-                correct_count += 1
-            total_count += 1
-        pl_module.log(
-            "val/correct_count",
-            float(correct_count),
-            on_step=False,
-            on_epoch=True,
-            sync_dist=True,
-            reduce_fx="sum",
-        )
-        pl_module.log(
-            "val/total_count",
-            float(total_count),
-            on_step=False,
-            on_epoch=True,
-            sync_dist=True,
-            reduce_fx="sum",
-        )
+        for key, value in metrics.items():
+            if key in ["correct_count", "total_count"]:
+                pl_module.log(f"val/{key}", value, on_step=False, on_epoch=True, sync_dist=True, reduce_fx="sum", batch_size=batch_size)
+            else:
+                pl_module.log(f"val/{key}", value, on_step=False, on_epoch=True, sync_dist=True, batch_size=batch_size)
 
     def train_dataloader(self, pl_module):
-        train_dataset = ICLTrainDataset(
-            pl_module.tokenizer,
-            pl_module.dataset_name,
-            max_examples=pl_module.max_examples,
-        )
+        base_dataset = self.dataset_handler.get_train_dataset()
+        train_dataset = ICLTrainDataset(pl_module.tokenizer, base_dataset)
         return DataLoader(
             train_dataset,
             batch_size=1,
@@ -134,11 +97,8 @@ class ICLStrategy(BaseStrategy):
         )
 
     def val_dataloader(self, pl_module):
-        dataset = ICLValidationDataset(
-            pl_module.tokenizer,
-            pl_module.val_dataset_name,
-            max_examples=pl_module.max_examples,
-        )
+        raw_val_data = self.dataset_handler.get_raw_val_data()
+        dataset = ICLValidationDataset(raw_val_data)
         return DataLoader(
             dataset,
             batch_size=pl_module.val_batch_size,
@@ -155,64 +115,34 @@ class ICLStrategy(BaseStrategy):
 
 
 class ICLTrainDataset(Dataset):
-    def __init__(self, tokenizer, dataset_name, max_examples=None):
-        print("Loading dataset...")
-        self.raw_dataset = load_dataset(dataset_name, split="train")
-        print(f"Dataset loaded: {len(self.raw_dataset)} examples")  # type: ignore
-        print("Processing examples...")
-        self.data_length = (
-            min(len(self.raw_dataset), max_examples)  # type: ignore
-            if max_examples
-            else len(self.raw_dataset)  # type: ignore
-        )
-        self.formatter = get_dataset_formatter(dataset_name)
+    def __init__(self, tokenizer, base_dataset):
         self.tokenizer = tokenizer
+        self.base_dataset = base_dataset
 
     def __len__(self):
-        return self.data_length
+        return len(self.base_dataset)
 
     def __getitem__(self, idx):
-        sample = self.formatter(self.raw_dataset[idx])  # type: ignore
-        assert sample is not None
-        context = (
-            "Question: "
-            + sample["question"]
-            + "\nResponse: "
-            + sample["answer"]
-            + "\n\n"
-        )
-        return context
+        item = self.base_dataset[idx]
+        input_ids = item["input_ids"]
+        labels = item["labels"]
+
+        question_end = next(i for i, label in enumerate(labels) if label != -100)
+        answer_ids = [id for id, label in zip(input_ids[question_end:], labels[question_end:]) if label != -100]
+
+        question_text = self.tokenizer.decode(input_ids[:question_end], skip_special_tokens=True)
+        answer_text = self.tokenizer.decode(answer_ids, skip_special_tokens=True)
+
+        context = question_text + answer_text + "\n\n"
+        return {"text": context}
 
 
 class ICLValidationDataset(Dataset):
-    def __init__(self, tokenizer, dataset_name, max_examples=None):
-        self.tokenizer = tokenizer
-        self.name = dataset_name
-        self.answers = []
-        # self.prompt = prompt
-
-        raw_dataset = load_dataset(*self.name, split="test")
-        prompts = []
-        for item in raw_dataset:
-            question = item["question"]  # type: ignore
-            answer = item["answer"]  # type: ignore
-
-            answer_match = re.search(r"#### ([\d,]+)", answer)
-            numerical_answer = (
-                answer_match.group(1).replace(",", "") if answer_match else ""
-            )
-
-            prompt = f"Question: {question}\nResponse:"
-            prompts.append(prompt)
-            self.answers.append(numerical_answer)
-
-        self.prompts = prompts
+    def __init__(self, raw_val_data):
+        self.data = raw_val_data
 
     def __len__(self):
-        return len(self.answers)
+        return len(self.data)
 
     def __getitem__(self, idx):
-        return {
-            "question": self.prompts[idx],
-            "expected_answer": self.answers[idx],
-        }
+        return self.data[idx]

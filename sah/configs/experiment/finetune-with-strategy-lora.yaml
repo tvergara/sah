@@ -5,13 +5,15 @@ defaults:
   - override /algorithm/strategy: lora
 
 trainer:
+  enable_checkpointing: false
   callbacks:
-    model_checkpoint:
-      filename: llama-lora-1
-  devices: 3
+    model_checkpoint: null
+    early_stopping: null
+  val_check_interval: 20
+  limit_val_batches: 2
 
 algorithm:
-  batch_size: 2
+  batch_size: 6
   experiment_name: llama-lora-1
   strategy:
     r: 1

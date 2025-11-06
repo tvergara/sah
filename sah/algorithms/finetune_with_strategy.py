@@ -27,6 +27,7 @@ class FinetuneWithStrategy(LightningModule):
         self.tokenizer = hydra_zen.instantiate(tokenizer_config)
         self.tokenizer.pad_token = self.tokenizer.eos_token
         self.model = hydra_zen.instantiate(model_config)
+        self.model_config = model_config
         self.max_examples = max_examples
         self.dataset_name = dataset_name
         self.strategy = strategy
