@@ -28,15 +28,19 @@ class BaseDatasetHandler:
 
 
 class ProcessedTrainDataset(Dataset):
-    def __init__(self, tokenizer, dataset_name, format_fn, block_size=1548, max_examples=None, split_str=None, config_name=None):
+    def __init__(self, tokenizer, dataset_name, format_fn, block_size=1548, max_examples=None, split_str=None, config_name=None, streaming=False):
 
         if split_str is None:
             split_str = f"train[:{max_examples}]" if max_examples else "train"
 
         if config_name is not None:
-            raw_dataset = load_dataset(dataset_name, config_name, split=split_str)
+            raw_dataset = load_dataset(dataset_name, config_name, split=split_str, streaming=streaming)
         else:
-            raw_dataset = load_dataset(dataset_name, split=split_str)
+            raw_dataset = load_dataset(dataset_name, split=split_str, streaming=streaming)
+
+        if streaming and max_examples:
+            raw_dataset = raw_dataset.take(max_examples)
+
         self.examples = []
 
         for example in tqdm(raw_dataset):

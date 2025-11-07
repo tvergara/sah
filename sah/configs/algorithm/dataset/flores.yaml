@@ -1,0 +1,12 @@
+# @package _global_
+
+algorithm:
+  dataset_name: allenai/nllb
+  max_examples: 100000
+  batch_size: 8
+  val_batch_size: 16
+  max_length: 128
+
+trainer:
+  limit_val_batches: 16
+  val_check_interval: 5

@@ -57,5 +57,32 @@ sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh smollm-360 metamath lora
 echo "Job 18: SmolLM360 + MMLU (1 GPU, batch_size=1, strategy=lora)"
 sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh smollm-360 mmlu lora
 
+echo "Job 19: Qwen + FLORES (1 GPU, batch_size=8, strategy=adam)"
+sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh qwen flores adam
+
+echo "Job 20: Qwen + FLORES (1 GPU, batch_size=1, strategy=icl)"
+sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh qwen flores icl algorithm.batch_size=1
+
+echo "Job 21: Qwen + FLORES (1 GPU, batch_size=8, strategy=lora)"
+sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh qwen flores lora
+
+echo "Job 22: SmolLM + FLORES (1 GPU, batch_size=8, strategy=adam)"
+sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh smollm flores adam
+
+echo "Job 23: SmolLM + FLORES (1 GPU, batch_size=1, strategy=icl)"
+sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh smollm flores icl algorithm.batch_size=1
+
+echo "Job 24: SmolLM + FLORES (1 GPU, batch_size=8, strategy=lora)"
+sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh smollm flores lora
+
+echo "Job 25: SmolLM360 + FLORES (1 GPU, batch_size=8, strategy=adam)"
+sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh smollm-360 flores adam
+
+echo "Job 26: SmolLM360 + FLORES (1 GPU, batch_size=1, strategy=icl)"
+sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh smollm-360 flores icl algorithm.batch_size=1
+
+echo "Job 27: SmolLM360 + FLORES (1 GPU, batch_size=8, strategy=lora)"
+sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh smollm-360 flores lora
+
 echo ""
 echo "All jobs submitted! Check status with: squeue -u $USER"

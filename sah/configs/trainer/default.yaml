@@ -22,7 +22,6 @@ default_root_dir: ${hydra:runtime.output_dir}
 
 detect_anomaly: false
 
-limit_val_batches: 1
 num_sanity_val_steps: 0
 val_check_interval: 100
 enable_checkpointing: true
