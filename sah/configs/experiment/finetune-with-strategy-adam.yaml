@@ -10,7 +10,6 @@ trainer:
     model_checkpoint: null
     early_stopping: null
   val_check_interval: 20
-  limit_val_batches: 2
 
 
 algorithm:

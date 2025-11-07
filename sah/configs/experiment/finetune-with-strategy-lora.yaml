@@ -9,12 +9,11 @@ trainer:
   callbacks:
     model_checkpoint: null
     early_stopping: null
-  val_check_interval: 20
-  limit_val_batches: 2
+  val_check_interval: 120
 
 algorithm:
   batch_size: 6
-  experiment_name: llama-lora-1
+  experiment_name: lora
   strategy:
     r: 1
     lr: 1e-4

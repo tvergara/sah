@@ -11,10 +11,8 @@ trainer:
     gpu_memory_tracker: null
     early_stopping: null
   val_check_interval: 1
-  limit_val_batches: 16
 
 algorithm:
   batch_size: 1
   experiment_name: icl
-  max_length: 800
-  val_batch_size: 16
+  max_length: 2048

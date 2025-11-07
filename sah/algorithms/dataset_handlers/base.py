@@ -28,12 +28,15 @@ class BaseDatasetHandler:
 
 
 class ProcessedTrainDataset(Dataset):
-    def __init__(self, tokenizer, dataset_name, format_fn, block_size=1548, max_examples=None, split_str=None):
+    def __init__(self, tokenizer, dataset_name, format_fn, block_size=1548, max_examples=None, split_str=None, config_name=None):
 
         if split_str is None:
             split_str = f"train[:{max_examples}]" if max_examples else "train"
 
-        raw_dataset = load_dataset(dataset_name, split=split_str)
+        if config_name is not None:
+            raw_dataset = load_dataset(dataset_name, config_name, split=split_str)
+        else:
+            raw_dataset = load_dataset(dataset_name, split=split_str)
         self.examples = []
 
         for example in tqdm(raw_dataset):
@@ -56,7 +59,7 @@ class ProcessedTrainDataset(Dataset):
 
             question_length = min(question_length_offset + len(question_ids), len(full_ids))
 
-            if len(full_ids) > question_length + 1:
+            if len(full_ids) > question_length:
                 labels = full_ids.copy()
                 labels[:question_length] = [-100] * question_length
 

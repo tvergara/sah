@@ -13,6 +13,7 @@ class LoRAStrategy(BaseStrategy):
         self.lora_dropout = lora_dropout
 
     def setup(self, pl_module, stage):
+        super().setup(pl_module, stage)
         if stage == "fit":
             lora_config = LoraConfig(
                 r=self.r,
