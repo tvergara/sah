@@ -10,7 +10,10 @@ class MetaMathHandler(BaseDatasetHandler):
     def format_example(self, example):
         query = example['query']
         answer = example['response']
-        return {"question": query, "answer": answer}
+        return {
+            "question": f"Question: {query}\nResponse:",
+            "answer": f" {answer}"
+        }
 
     def get_train_dataset(self):
         return ProcessedTrainDataset(

@@ -71,9 +71,9 @@ class ICLStrategy(BaseStrategy):
         attention_mask = tokenized["attention_mask"].to(pl_module.device)
 
         prepared_batch = {
+            **batch,
             "input_ids": input_ids,
             "attention_mask": attention_mask,
-            "expected_answer": batch["expected_answer"]
         }
 
         metrics = self.dataset_handler.validate_batch(pl_module, prepared_batch, batch_idx)
@@ -125,15 +125,9 @@ class ICLTrainDataset(Dataset):
     def __getitem__(self, idx):
         item = self.base_dataset[idx]
         input_ids = item["input_ids"]
-        labels = item["labels"]
 
-        question_end = next(i for i, label in enumerate(labels) if label != -100)
-        answer_ids = [id for id, label in zip(input_ids[question_end:], labels[question_end:]) if label != -100]
-
-        question_text = self.tokenizer.decode(input_ids[:question_end], skip_special_tokens=True)
-        answer_text = self.tokenizer.decode(answer_ids, skip_special_tokens=True)
-
-        context = question_text + answer_text + "\n\n"
+        text = self.tokenizer.decode(input_ids, skip_special_tokens=True)
+        context = text + "\n\n"
         return {"text": context}
 
 

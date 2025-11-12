@@ -34,9 +34,9 @@ class ProcessedTrainDataset(Dataset):
             split_str = f"train[:{max_examples}]" if max_examples else "train"
 
         if config_name is not None:
-            raw_dataset = load_dataset(dataset_name, config_name, split=split_str, streaming=streaming)
+            raw_dataset = load_dataset(dataset_name, config_name, split=split_str, streaming=streaming, trust_remote_code=True)
         else:
-            raw_dataset = load_dataset(dataset_name, split=split_str, streaming=streaming)
+            raw_dataset = load_dataset(dataset_name, split=split_str, streaming=streaming, trust_remote_code=True)
 
         if streaming and max_examples:
             raw_dataset = raw_dataset.take(max_examples)
@@ -45,23 +45,21 @@ class ProcessedTrainDataset(Dataset):
 
         for example in tqdm(raw_dataset):
             formatted = format_fn(example)
-            question_text = f"Question: {formatted['question']}\nResponse:"
-            answer_text = " " + formatted['answer']
+            question_text = formatted['question']
+            answer_text = formatted['answer']
 
             question_ids = tokenizer.encode(question_text, add_special_tokens=False)
             answer_ids = tokenizer.encode(answer_text, add_special_tokens=False)
 
             if tokenizer.bos_token_id is not None:
                 full_ids = [tokenizer.bos_token_id] + question_ids + answer_ids
-                question_length_offset = 1
+                question_length = 1 + len(question_ids)
             else:
                 full_ids = question_ids + answer_ids
-                question_length_offset = 0
+                question_length = len(question_ids)
 
             if len(full_ids) > block_size:
                 full_ids = full_ids[:block_size]
-
-            question_length = min(question_length_offset + len(question_ids), len(full_ids))
 
             if len(full_ids) > question_length:
                 labels = full_ids.copy()
