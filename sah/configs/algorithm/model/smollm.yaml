@@ -1,5 +1,6 @@
 # @package _global_
 
 algorithm:
+  model_name: smollm
   model_config:
     pretrained_model_name_or_path: HuggingFaceTB/SmolLM2-1.7B

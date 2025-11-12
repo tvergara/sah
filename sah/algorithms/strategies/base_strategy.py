@@ -52,7 +52,7 @@ class BaseStrategy:
             experiment_name = pl_module.experiment_name
             result_file = pl_module.result_file
             dataset_name = pl_module.dataset_name
-            model_name = pl_module.model_config.pretrained_model_name_or_path
+            model_name = pl_module.model_name
 
             if result_file.exists():
                 df = pd.read_csv(result_file)

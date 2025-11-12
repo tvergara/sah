@@ -117,6 +117,9 @@ class FLORESHandler(BaseDatasetHandler):
                 skip_special_tokens=True
             ).strip()
 
+            if '\n' in decoded:
+                decoded = decoded.split('\n')[0].strip()
+
             hypotheses.append(decoded)
             references.append(batch['expected_answer'][i])
 

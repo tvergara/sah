@@ -32,3 +32,4 @@ class NetworkConfig:
     trust_remote_code: bool = False
     torch_dtype: torch.dtype | None = None
     attn_implementation: str | None = None
+    revision: str = "main"

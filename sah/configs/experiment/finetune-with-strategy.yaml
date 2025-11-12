@@ -6,8 +6,6 @@ defaults:
 
 trainer:
   enable_checkpointing: true
-  limit_val_batches: 0.0
-  val_check_interval: 0
   max_epochs: 1
   accumulate_grad_batches: 1
   precision: "bf16-mixed"

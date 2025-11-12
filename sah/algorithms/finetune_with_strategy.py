@@ -19,7 +19,8 @@ class FinetuneWithStrategy(LightningModule):
         batch_size: int,
         result_file: str,
         experiment_name: str,
-        max_length: int
+        max_length: int,
+        model_name: str
     ):
         super().__init__()
         self.save_hyperparameters()
@@ -28,6 +29,7 @@ class FinetuneWithStrategy(LightningModule):
         self.tokenizer.pad_token = self.tokenizer.eos_token
         self.model = hydra_zen.instantiate(model_config)
         self.model_config = model_config
+        self.model_name = model_name
         self.max_examples = max_examples
         self.dataset_name = dataset_name
         self.strategy = strategy

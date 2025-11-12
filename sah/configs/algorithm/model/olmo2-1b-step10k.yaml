@@ -1,0 +1,7 @@
+# @package _global_
+
+algorithm:
+  model_name: olmo2-1b-step10k
+  model_config:
+    pretrained_model_name_or_path: allenai/OLMo-2-0425-1B-early-training
+    revision: stage1-step10000-tokens21B
