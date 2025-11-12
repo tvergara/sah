@@ -4,3 +4,4 @@ algorithm:
   model_name: qwen
   model_config:
     pretrained_model_name_or_path: Qwen/Qwen2.5-1.5B
+    revision: null
