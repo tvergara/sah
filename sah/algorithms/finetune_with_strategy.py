@@ -20,7 +20,8 @@ class FinetuneWithStrategy(LightningModule):
         result_file: str,
         experiment_name: str,
         max_length: int,
-        model_name: str
+        model_name: str,
+        seed: int | None = None
     ):
         super().__init__()
         self.save_hyperparameters()

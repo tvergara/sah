@@ -65,7 +65,9 @@ class BaseStrategy:
                 "dataset_name": dataset_name,
                 "model_name": model_name,
                 "performance": performance.item() if hasattr(performance, 'item') else performance,
-                "bits": self.bits
+                "bits": self.bits,
+                "seed": pl_module.hparams.seed,
+                "strategy_hparams": str(pl_module.hparams.strategy)
             }])
             df = pd.concat([df, new_row], ignore_index=True)
             df.to_csv(result_file, index=False)

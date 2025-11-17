@@ -17,3 +17,4 @@ defaults:
   - dataset: metamath
 result_file: ${hydra:runtime.output_dir}/results.csv
 experiment_name: default_name
+seed: ${seed}
