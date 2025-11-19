@@ -2,6 +2,9 @@
 
 algorithm:
   model_name: smollm-360
+  tokenizer_config:
+    pretrained_model_name_or_path: HuggingFaceTB/SmolLM2-360M
+    revision: null
   model_config:
     pretrained_model_name_or_path: HuggingFaceTB/SmolLM2-360M
     revision: null

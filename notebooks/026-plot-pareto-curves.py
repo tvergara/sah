@@ -6,12 +6,12 @@ df = pd.read_csv('/network/scratch/b/brownet/hydra-runs/finetune-with-strategy/r
 
 # Display name mappings
 model_display_names = {
-    'HuggingFaceTB/SmolLM2-1.7B': 'SmolLM2-1.7B',
-    'HuggingFaceTB/SmolLM2-360M': 'SmolLM2-360M',
+    'smollm': 'SmolLM2-1.7B',
+    # 'HuggingFaceTB/SmolLM2-360M': 'SmolLM2-360M',
     'olmo2-1b-step10k': 'OLMo2-1B (10k steps)',
     'olmo2-1b-step20k': 'OLMo2-1B (20k steps)',
     'olmo2-1b-step30k': 'OLMo2-1B (30k steps)',
-    'Qwen/Qwen2.5-1.5B': 'Qwen2.5-1.5B',
+    'qwen': 'Qwen2.5-1.5B',
 }
 
 dataset_display_names = {
@@ -64,17 +64,20 @@ def compute_pareto_frontier(df):
 
     return pd.DataFrame(pareto_points)
 
-dataset_name = 'meta-math/MetaMathQA'
+# dataset_name = 'meta-math/MetaMathQA'
 # dataset_name = 'cais/mmlu'
-# dataset_name = 'allenai/nllb'
-# model_name = 'HuggingFaceTB/SmolLM2-1.7B'
+dataset_name = 'allenai/nllb'
+model_name = 'olmo2-7b-step464k'
 # model_name = 'olmo2-1b-step30k'
 # model_name = 'HuggingFaceTB/SmolLM2-360M'
-model_name = 'Qwen/Qwen2.5-1.5B'
+# model_name = 'qwen'
 
 # Filter by dataset and model only - gather ALL points
 filtered_df = df[df['dataset_name'] == dataset_name]
 filtered_df = filtered_df[filtered_df['model_name'] == model_name].copy()
+
+# Get performance at 0 bits before filtering
+zero_bits_performance = filtered_df[filtered_df['bits'] == 0]['performance'].iloc[0]
 
 # Filter out 0 bits points (can't display on log scale anyway)
 filtered_df = filtered_df[filtered_df['bits'] > 0].copy()
@@ -99,6 +102,23 @@ pareto_df = pareto_df.sort_values('bits')
 plt.plot(pareto_df['bits'], pareto_df['performance'],
          linewidth=2,
          label='Pareto Frontier', color='gray', linestyle='--')
+
+plt.axhline(y=zero_bits_performance, color='red', linestyle=':', linewidth=2, label='0-bit performance')
+
+model_20_params_bits = 20 * 32
+plt.axvline(x=model_20_params_bits, color='cyan', linestyle=':', linewidth=2, label='20-param model')
+
+tweet_bits = 280 * 8
+plt.axvline(x=tweet_bits, color='orange', linestyle=':', linewidth=2, label='Tweet')
+
+imagenet_image_bits = 224 * 224 * 3 * 8
+plt.axvline(x=imagenet_image_bits, color='blue', linestyle=':', linewidth=2, label='ImageNet image')
+
+bert_base_bits = 110_000_000 * 32
+plt.axvline(x=bert_base_bits, color='green', linestyle=':', linewidth=2, label='BERT-base')
+
+python_100_lines_bits = 100 * 50 * 8
+plt.axvline(x=python_100_lines_bits, color='purple', linestyle=':', linewidth=2, label='100 lines Python')
 
 plt.xlabel(r'$C(T, \delta \mid P)$', fontsize=14)
 metric_name = dataset_metric_names.get(dataset_name, r'$\delta$')

@@ -4,12 +4,14 @@ from tqdm import tqdm
 
 
 class BaseDatasetHandler:
-    def __init__(self, tokenizer, dataset_name, block_size=1548, max_examples=None):
+    def __init__(self, tokenizer, dataset_name, block_size=1548, max_examples=None, generations_dir=None):
         self.tokenizer = tokenizer
         self.dataset_name = dataset_name
         self.block_size = block_size
         self.max_examples = max_examples
+        self.generations_dir = generations_dir
         self.validation_data = None
+        self.generations = []
 
     def format_example(self, example):
         raise NotImplementedError

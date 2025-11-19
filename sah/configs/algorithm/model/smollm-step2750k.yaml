@@ -2,6 +2,9 @@
 
 algorithm:
   model_name: smollm-step2750k
+  tokenizer_config:
+    pretrained_model_name_or_path: HuggingFaceTB/SmolLM2-1.7B-intermediate-checkpoints
+    revision: step-2750000
   model_config:
     pretrained_model_name_or_path: HuggingFaceTB/SmolLM2-1.7B-intermediate-checkpoints
     revision: step-2750000

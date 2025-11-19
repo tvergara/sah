@@ -1,3 +1,6 @@
+import json
+import uuid
+
 import pandas as pd
 import torch.distributed as dist
 from torch.utils.data import DataLoader
@@ -15,7 +18,8 @@ class BaseStrategy:
             pl_module.dataset_name,
             pl_module.tokenizer,
             block_size=pl_module.max_length,
-            max_examples=pl_module.max_examples
+            max_examples=pl_module.max_examples,
+            generations_dir=pl_module.generations_dir
         )
 
     def on_train_start(self, pl_module):
@@ -49,6 +53,7 @@ class BaseStrategy:
 
         if performance is not None:
             experiment_id = pl_module.trainer.logger.experiment.id
+            eval_run_id = str(uuid.uuid4())
             experiment_name = pl_module.experiment_name
             result_file = pl_module.result_file
             dataset_name = pl_module.dataset_name
@@ -57,20 +62,24 @@ class BaseStrategy:
             if result_file.exists():
                 df = pd.read_csv(result_file)
             else:
-                df = pd.DataFrame(columns=["experiment_name", "experiment_id", "dataset_name", "model_name", "performance", "bits"])
+                df = pd.DataFrame(columns=["experiment_name", "experiment_id", "eval_run_id", "dataset_name", "model_name", "performance", "bits"])
 
             new_row = pd.DataFrame([{
                 "experiment_name": experiment_name,
                 "experiment_id": experiment_id,
+                "eval_run_id": eval_run_id,
                 "dataset_name": dataset_name,
                 "model_name": model_name,
                 "performance": performance.item() if hasattr(performance, 'item') else performance,
                 "bits": self.bits,
                 "seed": pl_module.hparams.seed,
-                "strategy_hparams": str(pl_module.hparams.strategy)
+                "strategy_hparams": json.dumps(vars(pl_module.hparams.strategy), default=str)
             }])
             df = pd.concat([df, new_row], ignore_index=True)
             df.to_csv(result_file, index=False)
+
+            if hasattr(self.dataset_handler, 'save_generations'):
+                self.dataset_handler.save_generations(eval_run_id)
 
     def configure_optimizers(self, pl_module):
         return None

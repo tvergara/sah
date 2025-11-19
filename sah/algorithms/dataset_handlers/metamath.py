@@ -100,6 +100,13 @@ class MetaMathHandler(BaseDatasetHandler):
             match = re.search(pattern, decoded, re.IGNORECASE)
             if match:
                 extracted_answer = match.group(1).replace(',', '')
+            else:
+                question_match = re.search(r'question:', decoded, re.IGNORECASE)
+                if question_match:
+                    text_before_question = decoded[:question_match.start()]
+                    numbers = re.findall(r'[\d,]+', text_before_question)
+                    if numbers:
+                        extracted_answer = numbers[-1].replace(',', '')
 
             expected_answer = batch['expected_answer'][i]
             is_correct = extracted_answer == expected_answer

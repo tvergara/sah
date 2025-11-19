@@ -2,6 +2,9 @@
 
 algorithm:
   model_name: hubble-1b-500b-perturbed
+  tokenizer_config:
+    pretrained_model_name_or_path: allegrolab/hubble-1b-500b_toks-perturbed-hf
+    revision: null
   model_config:
     pretrained_model_name_or_path: allegrolab/hubble-1b-500b_toks-perturbed-hf
     revision: null

@@ -34,7 +34,7 @@ class FLORESHandler(BaseDatasetHandler):
 
         return {
             "question": f"Translate to French: {english}\nTranslation:",
-            "answer": f" {french}"
+            "answer": f" {french}\n"
         }
 
     def get_train_dataset(self):

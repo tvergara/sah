@@ -16,6 +16,6 @@ trainer:
       every_n_train_steps: 400
       filename: last
     throughput: null
-  strategy: fsdp
+  strategy: auto
 
 name: finetune-with-strategy

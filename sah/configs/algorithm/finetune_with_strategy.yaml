@@ -3,8 +3,6 @@ tokenizer_config:
   _target_: sah.algorithms.utils.data_classes.TokenizerConfig
   _recursive_: false
   _convert_: object
-  pretrained_model_name_or_path: ${..model_config.pretrained_model_name_or_path}
-  revision: ${..model_config.revision}
   use_fast: true
   trust_remote_code: true
 model_config:
@@ -16,5 +14,6 @@ defaults:
   - model: qwen
   - dataset: metamath
 result_file: ${hydra:runtime.output_dir}/results.csv
+generations_dir: ${hydra:runtime.output_dir}/generations
 experiment_name: default_name
 seed: ${seed}

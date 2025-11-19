@@ -6,7 +6,7 @@ df = pd.read_csv('/network/scratch/b/brownet/hydra-runs/finetune-with-strategy/r
 
 # Display name mappings
 model_display_names = {
-    'HuggingFaceTB/SmolLM2-1.7B': 'SmolLM2-1.7B',
+    'smollm': 'SmolLM2-1.7B',
     'HuggingFaceTB/SmolLM2-360M': 'SmolLM2-360M',
     'olmo2-1b-step10k': 'OLMo2-1B (10k steps)',
     'olmo2-1b-step20k': 'OLMo2-1B (20k steps)',
@@ -14,7 +14,7 @@ model_display_names = {
     'smollm-step2750k': 'SmolLM2-1.7B (2750k steps)',
     'smollm-step4125k': 'SmolLM2-1.7B (4125k steps)',
     'smollm-step4875k': 'SmolLM2-1.7B (4875k steps)',
-    'Qwen/Qwen2.5-1.5B': 'Qwen2.5-1.5B',
+    'qwen': 'Qwen2.5-1.5B',
 }
 
 dataset_display_names = {
@@ -29,11 +29,13 @@ dataset_metric_names = {
     'allenai/nllb': 'BLEU',
 }
 
-# dataset_name = 'meta-math/MetaMathQA'
+dataset_name = 'meta-math/MetaMathQA'
 # dataset_name = 'cais/mmlu'
-dataset_name = 'allenai/nllb'
+# dataset_name = 'allenai/nllb'
+# dataset_name = 'ybisk/piqa'
 # models = ['olmo2-1b-step10k', 'olmo2-1b-step20k', 'olmo2-1b-step30k']
-models = ['smollm-step2750k','smollm-step4125k','smollm-step4875k', 'HuggingFaceTB/SmolLM2-1.7B']
+models = ['smollm-step2750k','smollm-step4125k','smollm-step4875k', 'smollm']
+# models = ['hubble-1b-500b-standard','hubble-1b-500b-perturbed']
 
 def compute_pareto_frontier(df):
     """

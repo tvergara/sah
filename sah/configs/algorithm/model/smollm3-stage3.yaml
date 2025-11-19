@@ -1,0 +1,10 @@
+# @package _global_
+
+algorithm:
+  model_name: smollm3-stage3
+  tokenizer_config:
+    pretrained_model_name_or_path: HuggingFaceTB/SmolLM3-3B
+    revision: null
+  model_config:
+    pretrained_model_name_or_path: HuggingFaceTB/SmolLM3-3B-checkpoints
+    revision: stage3-step-4720000
