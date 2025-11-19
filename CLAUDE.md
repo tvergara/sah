@@ -122,3 +122,21 @@ Tests are co-located with source code using `*_test.py` naming convention. The p
 - Doctest support enabled
 - Custom markers for incremental testing
 - CUDA deterministic mode for reproducible tests
+
+## Key Files Reference
+
+When working on experiments, these are the most commonly modified files:
+
+- **Job submission**: `slurm/submit-all-experiments.sh` - Submit experiments to SLURM with hyperparameter sweeps
+- **Algorithm implementation**: `sah/algorithms/finetune_with_strategy.py` - Main LightningModule for fine-tuning experiments
+- **Base strategy**: `sah/algorithms/strategies/base_strategy.py` - Base class for all training strategies, handles training loops and result saving
+- **Individual strategies**: `sah/algorithms/strategies/` - Specific strategies like `adam.py`, `lora.py`, `icl.py`, `iterative.py`
+- **Algorithm configs**: `sah/configs/algorithm/finetune_with_strategy.yaml` - Main algorithm configuration
+- **Model configs**: `sah/configs/algorithm/model/` - Model-specific configs (e.g., `qwen.yaml`, `smollm.yaml`, `olmo2-7b.yaml`)
+- **Experiment configs**: `sah/configs/experiment/` - High-level experiment definitions (e.g., `finetune-with-strategy.yaml`)
+- **Analysis notebooks**: `notebooks/` - Jupyter notebooks for plotting and analysis (e.g., `026-plot-pareto-curves.py`)
+
+## Coding Guidelines
+
+- **No defensive code**: Do not write defensive code with checks for None, empty values, or edge cases unless explicitly required for correctness.
+- **No comments**: Do not add comments to code. The code should be self-explanatory.
