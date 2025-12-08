@@ -34,8 +34,10 @@ dataset_name = 'meta-math/MetaMathQA'
 # dataset_name = 'allenai/nllb'
 # dataset_name = 'ybisk/piqa'
 # models = ['olmo2-1b-step10k', 'olmo2-1b-step20k', 'olmo2-1b-step30k']
-models = ['smollm-step2750k','smollm-step4125k','smollm-step4875k', 'smollm']
+# models = ['smollm-step2750k','smollm-step4125k','smollm-step4875k', 'smollm']
+models = ['smollm3-step40k','smollm3-step1720k','smollm3-stage1']
 # models = ['hubble-1b-500b-standard','hubble-1b-500b-perturbed']
+# models = ['olmo3-7b-step1414k', 'olmo3-7b-stage2-step6k', 'olmo3-7b-stage2-step12k', 'olmo3-7b-stage2-step24k', 'olmo3-7b-stage2-step48k']
 
 def compute_pareto_frontier(df):
     """
@@ -74,6 +76,7 @@ plt.figure(figsize=(12, 7))
 
 # Filter by dataset
 filtered_df = df[df['dataset_name'] == dataset_name].copy()
+filtered_df['bits'] = filtered_df['bits'].astype(float)
 
 # Filter out 0 bits points (can't display on log scale anyway)
 filtered_df = filtered_df[filtered_df['bits'] > 0].copy()

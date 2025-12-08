@@ -1,4 +1,5 @@
 from .flores import FLORESHandler
+from .ifeval import IFEvalHandler
 from .lima import LimaHandler
 from .metamath import MetaMathHandler
 from .mmlu import MMLUHandler
@@ -19,5 +20,7 @@ def get_dataset_handler(dataset_name, tokenizer, block_size=1548, max_examples=N
         return PiQAHandler(tokenizer, dataset_name, block_size, max_examples)
     elif dataset_name == "GAIR/lima" or dataset_name.startswith("lima"):
         return LimaHandler(tokenizer, dataset_name, block_size, max_examples, generations_dir)
+    elif dataset_name.startswith("ifeval"):
+        return IFEvalHandler(tokenizer, dataset_name, block_size, max_examples, generations_dir)
     else:
         raise ValueError(f"Unknown dataset: {dataset_name}")

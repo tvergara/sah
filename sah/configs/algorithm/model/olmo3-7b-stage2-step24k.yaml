@@ -1,0 +1,11 @@
+# @package _global_
+
+algorithm:
+  model_name: olmo3-7b-stage2-step24k
+  tokenizer_config:
+    pretrained_model_name_or_path: allenai/Olmo-3-1025-7B
+    revision: stage2-step24000
+  model_config:
+    pretrained_model_name_or_path: allenai/Olmo-3-1025-7B
+    revision: stage2-step24000
+    torch_dtype: bfloat16

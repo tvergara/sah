@@ -1,0 +1,109 @@
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+
+df = pd.read_csv('/network/scratch/b/brownet/hydra-runs/finetune-with-strategy/results.csv')
+
+model_display_names = {
+    'smollm': 'SmolLM2-1.7B',
+    'smollm-step2750k': 'SmolLM2-1.7B (2750k steps)',
+    'smollm-step4125k': 'SmolLM2-1.7B (4125k steps)',
+    'smollm-step4875k': 'SmolLM2-1.7B (4875k steps)',
+}
+
+dataset_display_names = {
+    'meta-math/MetaMathQA': 'GSM8K',
+    'allenai/nllb': 'NLLB',
+}
+
+dataset_metric_names = {
+    'meta-math/MetaMathQA': 'Accuracy',
+    'allenai/nllb': 'BLEU',
+}
+
+def compute_pareto_frontier(df):
+    df_sorted = df.sort_values('bits').copy()
+    pareto_points = []
+
+    zero_bit_rows = df_sorted[df_sorted['bits'] == 0]
+    if len(zero_bit_rows) > 0:
+        max_performance = zero_bit_rows.iloc[0]['performance']
+        pareto_points.append(zero_bit_rows.iloc[0])
+    else:
+        max_performance = -np.inf
+
+    for idx, row in df_sorted.iterrows():
+        if row['bits'] == 0:
+            continue
+        if row['performance'] >= max_performance:
+            if len(pareto_points) > 0:
+                step_point = row.copy()
+                step_point['performance'] = max_performance
+                step_point['bits'] -= 0.001
+                pareto_points.append(step_point)
+            pareto_points.append(row)
+            max_performance = row['performance']
+
+    return pd.DataFrame(pareto_points)
+
+def interpolate_pareto_curve(pareto_df, bit_levels):
+    return np.interp(bit_levels, pareto_df['bits'].values, pareto_df['performance'].values)
+
+models = ['smollm3-stage1','smollm3-stage2', 'smollm3-stage3', 'smollm3']
+datasets = ['meta-math/MetaMathQA', 'allenai/nllb']
+
+fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+
+all_handles = []
+all_labels = []
+
+for idx, dataset_name in enumerate(datasets):
+    ax = axes[idx]
+
+    filtered_df = df[df['dataset_name'] == dataset_name].copy()
+
+    pareto_curves = {}
+    for model_name in models:
+        model_df = filtered_df[filtered_df['model_name'] == model_name].copy()
+        pareto_df = compute_pareto_frontier(model_df)
+        pareto_curves[model_name] = pareto_df
+
+    all_bits = np.concatenate([pareto_curves[m]['bits'].values for m in models])
+    bit_levels = np.logspace(0, np.log10(all_bits.max()), 200)
+
+    interpolated_curves = {}
+    for model_name in models:
+        interpolated_curves[model_name] = interpolate_pareto_curve(pareto_curves[model_name], bit_levels)
+
+    diff_colors = plt.cm.tab10(range(len(models) - 1))
+
+    for i in range(len(models) - 1):
+        current_model = models[i]
+        next_model = models[i + 1]
+
+        diff = interpolated_curves[next_model] - interpolated_curves[current_model]
+
+        model_display_current = model_display_names.get(current_model, current_model)
+        model_display_next = model_display_names.get(next_model, next_model)
+        label = f'{model_display_next} - {model_display_current}'
+
+        ax.plot(bit_levels, diff, linewidth=2, label=label, color=diff_colors[i])
+
+    ax.axhline(y=0, color='black', linestyle='--', alpha=0.5, linewidth=1)
+
+    ax.set_xlabel(r'$C(T, \delta \mid P)$', fontsize=14)
+    metric_name = dataset_metric_names.get(dataset_name, r'$\delta$')
+    ax.set_ylabel(f'{metric_name} Difference', fontsize=14)
+    dataset_display = dataset_display_names.get(dataset_name, dataset_name)
+    ax.set_title(f'{dataset_display} - Pareto Curve Diffs', fontsize=16)
+    ax.set_xscale('log')
+    ax.grid(True, alpha=0.3)
+
+    if idx == 0:
+        handles, labels = ax.get_legend_handles_labels()
+        all_handles = handles
+        all_labels = labels
+
+fig.legend(all_handles, all_labels, loc='upper center', bbox_to_anchor=(0.5, -0.05), ncol=2, fontsize=12)
+plt.tight_layout()
+plt.savefig('checkpoint_pareto_diffs.png', bbox_inches='tight', dpi=300)

@@ -1,0 +1,5 @@
+_target_: sah.algorithms.strategies.full_ft.FullFTStrategy
+_recursive_: false
+_convert_: object
+lr: 1e-5
+bits_per_parameter: 16

@@ -2,7 +2,7 @@
 
 defaults:
   - finetune-with-strategy
-  - override /algorithm/strategy: lora
+  - override /algorithm/strategy: online_coding
 
 trainer:
   enable_checkpointing: false
@@ -13,4 +13,5 @@ trainer:
   val_check_interval: 1.0
 
 algorithm:
-  experiment_name: lora
+  max_examples: 64
+  experiment_name: online_coding

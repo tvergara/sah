@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-df = pd.read_csv('/network/scratch/b/brownet/hydra-runs/finetune-with-strategy/results.csv')
+df = pd.read_json('/network/scratch/b/brownet/hydra-runs/finetune-with-strategy/results.csv', lines=True)
 
 # Display name mappings
 model_display_names = {
@@ -66,8 +66,21 @@ def compute_pareto_frontier(df):
 
 # dataset_name = 'meta-math/MetaMathQA'
 # dataset_name = 'cais/mmlu'
-dataset_name = 'allenai/nllb'
-model_name = 'olmo2-7b-step464k'
+# dataset_name = 'allenai/nllb'
+dataset_name = 'ifeval:/network/scratch/b/brownet/correct_ifeval_examples.jsonl'
+# dataset_name = 'GAIR/lima'
+# model_name = 'smollm3'
+model_name = 'smollm3-stage3'
+# model_name = 'smollm3-stage1'
+# model_name = 'smollm3-stage1'
+# model_name = 'smollm'
+# model_name = 'olmo3-7b-step0'
+# model_name = 'olmo3-7b-stage2-step48k'
+# model_name = 'olmo3-7b-stage2-step24k'
+# model_name = 'olmo3-7b-stage2-step12k'
+# model_name = 'olmo3-7b-step707k'
+# model_name = 'olmo3-7b-step1414k'
+# model_name = 'olmo3-13b'
 # model_name = 'olmo2-1b-step30k'
 # model_name = 'HuggingFaceTB/SmolLM2-360M'
 # model_name = 'qwen'
@@ -76,11 +89,18 @@ model_name = 'olmo2-7b-step464k'
 filtered_df = df[df['dataset_name'] == dataset_name]
 filtered_df = filtered_df[filtered_df['model_name'] == model_name].copy()
 
+filtered_df['bits']
+
+# filtered_df['bits'] = filtered_df['bits'].astype(float)
+# filtered_df
+
 # Get performance at 0 bits before filtering
-zero_bits_performance = filtered_df[filtered_df['bits'] == 0]['performance'].iloc[0]
+# zero_bits_performance = filtered_df[filtered_df['bits'] == 0]['performance'].iloc[0]
+zero_bits_performance = 0
 
 # Filter out 0 bits points (can't display on log scale anyway)
 filtered_df = filtered_df[filtered_df['bits'] > 0].copy()
+filtered_df
 
 plt.figure(figsize=(10, 6))
 

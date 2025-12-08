@@ -6,29 +6,29 @@ from pathlib import Path
 import pandas as pd
 
 
-def find_lima_runs_to_evaluate(csv_path: str):
+def find_ifeval_runs_to_evaluate(csv_path: str):
     csv_path = Path(csv_path)
-    df = pd.read_csv(csv_path)
+    df = pd.read_json(csv_path, lines=True)
 
-    print(f"Total rows in CSV: {len(df)}")
+    print(f"Total rows in file: {len(df)}")
 
-    lima_mask = df['dataset_name'].str.contains('lima', case=False, na=False)
-    lima_df = df[lima_mask]
-    print(f"Rows with lima dataset: {len(lima_df)}")
+    ifeval_mask = df['dataset_name'].str.contains('ifeval', case=False, na=False)
+    ifeval_df = df[ifeval_mask]
+    print(f"Rows with ifeval dataset: {len(ifeval_df)}")
 
     no_performance_mask = (
-        lima_df['performance'].isna() |
-        (lima_df['performance'] == 0.0) |
-        (lima_df['performance'] == 0)
+        ifeval_df['performance'].isna() |
+        (ifeval_df['performance'] == 0.0) |
+        (ifeval_df['performance'] == 0)
     )
-    lima_no_perf = lima_df[no_performance_mask]
+    ifeval_no_perf = ifeval_df[no_performance_mask]
 
-    print(f"Lima rows needing evaluation: {len(lima_no_perf)}")
+    print(f"IFEval rows needing evaluation: {len(ifeval_no_perf)}")
     print()
     print("Runs to evaluate:")
     print("-" * 80)
 
-    for idx, row in lima_no_perf.iterrows():
+    for idx, row in ifeval_no_perf.iterrows():
         print(f"Row {idx}:")
         print(f"  experiment_name: {row['experiment_name']}")
         print(f"  experiment_id: {row['experiment_id']}")
@@ -38,7 +38,7 @@ def find_lima_runs_to_evaluate(csv_path: str):
         print(f"  performance: {row['performance']}")
         print()
 
-    return lima_no_perf
+    return ifeval_no_perf
 
 
 def run_evaluation(eval_run_id: str, generations_dir: Path, google_research_dir: Path):
@@ -75,19 +75,19 @@ def run_evaluation(eval_run_id: str, generations_dir: Path, google_research_dir:
     return performance
 
 
-def evaluate_lima_runs(csv_path: str, generations_dir: str, google_research_dir: str):
+def evaluate_ifeval_runs(csv_path: str, generations_dir: str, google_research_dir: str):
     csv_path = Path(csv_path)
     generations_dir = Path(generations_dir)
     google_research_dir = Path(google_research_dir)
 
-    lima_no_perf = find_lima_runs_to_evaluate(csv_path)
+    ifeval_no_perf = find_ifeval_runs_to_evaluate(csv_path)
 
     print("\nStarting evaluation...")
     print("=" * 80)
 
-    df = pd.read_csv(csv_path)
+    df = pd.read_json(csv_path, lines=True)
 
-    for idx, row in lima_no_perf.iterrows():
+    for idx, row in ifeval_no_perf.iterrows():
         eval_run_id = row['eval_run_id']
 
         if pd.isna(eval_run_id):
@@ -101,19 +101,19 @@ def evaluate_lima_runs(csv_path: str, generations_dir: str, google_research_dir:
         print(f"  Performance: {performance:.4f}")
         df.loc[idx, 'performance'] = performance
 
-    df.to_csv(csv_path, index=False)
-    print(f"\n✓ Updated {len(lima_no_perf)} rows in {csv_path}")
+    df.to_json(csv_path, orient='records', lines=True)
+    print(f"\n✓ Updated {len(ifeval_no_perf)} rows in {csv_path}")
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Find and evaluate LIMA dataset runs"
+        description="Find and evaluate IFEval dataset runs"
     )
     parser.add_argument(
         '--csv',
         type=str,
         default='/network/scratch/b/brownet/hydra-runs/finetune-with-strategy/results.csv',
-        help='Path to results CSV file'
+        help='Path to results jsonl file'
     )
 
     args = parser.parse_args()
@@ -122,7 +122,7 @@ def main():
     generations_dir = csv_path.parent / "generations"
     google_research_dir = Path.home() / "google-research"
 
-    evaluate_lima_runs(args.csv, generations_dir, google_research_dir)
+    evaluate_ifeval_runs(args.csv, generations_dir, google_research_dir)
 
 
 if __name__ == "__main__":

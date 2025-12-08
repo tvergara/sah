@@ -1,7 +1,6 @@
 import json
 import uuid
 
-import pandas as pd
 import torch.distributed as dist
 from torch.utils.data import DataLoader
 
@@ -59,12 +58,7 @@ class BaseStrategy:
             dataset_name = pl_module.dataset_name
             model_name = pl_module.model_name
 
-            if result_file.exists():
-                df = pd.read_csv(result_file)
-            else:
-                df = pd.DataFrame(columns=["experiment_name", "experiment_id", "eval_run_id", "dataset_name", "model_name", "performance", "bits"])
-
-            new_row = pd.DataFrame([{
+            result = {
                 "experiment_name": experiment_name,
                 "experiment_id": experiment_id,
                 "eval_run_id": eval_run_id,
@@ -73,10 +67,11 @@ class BaseStrategy:
                 "performance": performance.item() if hasattr(performance, 'item') else performance,
                 "bits": self.bits,
                 "seed": pl_module.hparams.seed,
-                "strategy_hparams": json.dumps(vars(pl_module.hparams.strategy), default=str)
-            }])
-            df = pd.concat([df, new_row], ignore_index=True)
-            df.to_csv(result_file, index=False)
+                "strategy_hparams": vars(pl_module.hparams.strategy)
+            }
+
+            with open(result_file, 'a') as f:
+                f.write(json.dumps(result, default=str) + '\n')
 
             if hasattr(self.dataset_handler, 'save_generations'):
                 self.dataset_handler.save_generations(eval_run_id)
