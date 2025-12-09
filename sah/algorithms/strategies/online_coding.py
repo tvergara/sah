@@ -1,17 +1,17 @@
 import torch
 import torch.distributed as dist
-from peft import LoraConfig, get_peft_model
+from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 
 from sah.algorithms.strategies.base_strategy import BaseStrategy
 from sah.algorithms.utils.arithmetic_coding import compute_bits_from_logits
 
 
 class OnlineCodingStrategy(BaseStrategy):
-    def __init__(self, lr=1e-4, optimizer="adam", use_lora=False, r=8, lora_alpha=32, lora_dropout=0.1):
+    def __init__(self, lr=1e-4, optimizer="adam", ft_strategy="full", r=8, lora_alpha=32, lora_dropout=0.1):
         super().__init__()
         self.lr = lr
         self.optimizer = optimizer
-        self.use_lora = use_lora
+        self.ft_strategy = ft_strategy
         self.r = r
         self.lora_alpha = lora_alpha
         self.lora_dropout = lora_dropout
@@ -20,7 +20,10 @@ class OnlineCodingStrategy(BaseStrategy):
 
     def setup(self, pl_module, stage):
         super().setup(pl_module, stage)
-        if stage == "fit" and self.use_lora:
+        if stage == "fit" and self.ft_strategy in ["lora", "qlora"]:
+            if self.ft_strategy == "qlora":
+                pl_module.model = prepare_model_for_kbit_training(pl_module.model)
+
             lora_config = LoraConfig(
                 r=self.r,
                 lora_alpha=self.lora_alpha,

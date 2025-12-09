@@ -33,3 +33,5 @@ class NetworkConfig:
     torch_dtype: torch.dtype | None = None
     attn_implementation: str | None = None
     revision: str = "main"
+    low_cpu_mem_usage: bool | None = None
+    quantization_config: object | None = None

@@ -124,7 +124,6 @@ def train_lightning(
         elif config.datamodule is not None:
             datamodule = hydra.utils.instantiate(config.datamodule)
 
-    trainer.validate(algorithm, datamodule=datamodule)
     trainer.fit(algorithm, datamodule=datamodule, ckpt_path=config.ckpt_path)
     return algorithm
 

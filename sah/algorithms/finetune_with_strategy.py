@@ -28,11 +28,11 @@ class FinetuneWithStrategy(LightningModule):
         self.save_hyperparameters()
 
         self.tokenizer = hydra_zen.instantiate(tokenizer_config)
-        self.model = hydra_zen.instantiate(model_config)
 
         if self.tokenizer.pad_token_id is None:
             self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
 
+        self.model = hydra_zen.instantiate(model_config)
         self.model.config.pad_token_id = self.tokenizer.pad_token_id
 
         self.model_config = model_config

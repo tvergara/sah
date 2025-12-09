@@ -3,7 +3,7 @@ _recursive_: false
 _convert_: object
 lr: 1e-5
 optimizer: adam
-use_lora: true
+ft_strategy: lora
 r: 8
 lora_alpha: 8
 lora_dropout: 0.0
