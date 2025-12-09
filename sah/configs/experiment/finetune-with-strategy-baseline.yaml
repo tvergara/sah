@@ -1,0 +1,16 @@
+# @package _global_
+
+defaults:
+  - finetune-with-strategy
+  - override /algorithm/strategy: baseline
+
+trainer:
+  enable_checkpointing: false
+  max_epochs: 0
+  limit_train_batches: 0
+  callbacks:
+    model_checkpoint: null
+    early_stopping: null
+
+algorithm:
+  experiment_name: baseline
