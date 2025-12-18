@@ -5,15 +5,12 @@ defaults:
   - override /algorithm/strategy: phase_one
 
 trainer:
+  enable_checkpointing: false
   callbacks:
     model_checkpoint: null
     early_stopping: null
-  val_check_interval: 10
-  limit_val_batches: 1
+  val_check_interval: 1.0
 
 algorithm:
-  batch_size: 6
+  max_examples: 80
   experiment_name: phase-one
-  strategy:
-    r: 2
-    lr: 1e-3

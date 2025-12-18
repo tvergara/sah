@@ -9,13 +9,7 @@ trainer:
   callbacks:
     model_checkpoint: null
     early_stopping: null
-  val_check_interval: 200
-  limit_val_batches: 1
-  num_sanity_val_steps: 1
+  val_check_interval: 1.0
 
 algorithm:
-  batch_size: 12
   experiment_name: phase-two
-  strategy:
-    r: 2
-    lr: 5e-3

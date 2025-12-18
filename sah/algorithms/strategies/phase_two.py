@@ -28,6 +28,7 @@ class PhaseTwoStrategy(BaseStrategy):
         self.grads_in_memory = grads_in_memory
 
     def setup(self, pl_module, stage):
+        super().setup(pl_module, stage)
         if stage == "fit":
             lora_config = LoraConfig(
                 r=self.r,
@@ -35,6 +36,7 @@ class PhaseTwoStrategy(BaseStrategy):
                 lora_dropout=self.lora_dropout,
                 bias="none",
                 task_type="CAUSAL_LM",
+                target_modules=["q_proj", "v_proj", "k_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
             )
 
             pl_module.model = get_peft_model(pl_module.model, lora_config)

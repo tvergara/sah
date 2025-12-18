@@ -1,12 +1,11 @@
-import math
-from decimal import Decimal
 from pathlib import Path
 
 import torch
+import torch.distributed as dist
 from peft import LoraConfig, get_peft_model
 
 from sah.algorithms.strategies.base_strategy import BaseStrategy
-from sah.algorithms.utils.arithmetic_coding import encode
+from sah.algorithms.utils.arithmetic_coding import compute_bits_from_logits
 
 
 class PhaseOneStrategy(BaseStrategy):
@@ -27,6 +26,7 @@ class PhaseOneStrategy(BaseStrategy):
         self.bits = 0
 
     def setup(self, pl_module, stage):
+        super().setup(pl_module, stage)
         if stage == "fit":
             lora_config = LoraConfig(
                 r=self.r,
@@ -34,6 +34,7 @@ class PhaseOneStrategy(BaseStrategy):
                 lora_dropout=self.lora_dropout,
                 bias="none",
                 task_type="CAUSAL_LM",
+                target_modules=["q_proj", "v_proj", "k_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
             )
 
             pl_module.model = get_peft_model(pl_module.model, lora_config)
@@ -42,20 +43,26 @@ class PhaseOneStrategy(BaseStrategy):
     def configure_optimizers(self, pl_module):
         return torch.optim.AdamW(pl_module.model.parameters(), lr=self.lr)
 
-    def on_train_batch_start(self, pl_module, batch, batch_idx):
-        input_ids = batch['input_ids']
-        attention_mask = batch['attention_mask']
+    def training_step(self, pl_module, batch, batch_idx):
+        outputs = pl_module.model(**batch)
+        loss = outputs.loss
 
         with torch.no_grad():
-                compressed_batch = encode(pl_module.model, input_ids, attention_mask)
+            total_bits = compute_bits_from_logits(
+                outputs.logits,
+                batch['input_ids'],
+                batch.get('attention_mask')
+            )
 
-        total_bits = 0
-        log_2 = Decimal(2).ln()
-        for compressed_value, interval_width in compressed_batch:
-            if interval_width > 0:
-                bits = math.ceil(float(-(interval_width.ln() / log_2)))
-                total_bits += bits
-        self.bits += total_bits
+            if dist.is_initialized():
+                total_bits_tensor = torch.tensor(total_bits, dtype=torch.float32, device=pl_module.device)
+                dist.all_reduce(total_bits_tensor, op=dist.ReduceOp.SUM)
+                total_bits = int(total_bits_tensor.item())
+
+            self.bits += total_bits
+
+        pl_module.log("train/loss", loss, on_step=True, on_epoch=False, prog_bar=True)
+        return loss
 
     def on_train_start(self, pl_module):
         self.lora_params = {name: param.data.clone() for name, param in pl_module.model.named_parameters() if param.requires_grad}
