@@ -1,20 +1,24 @@
 import torch
-from peft import LoraConfig, get_peft_model
+from peft import LoraConfig, get_peft_model, prepare_model_for_kbit_training
 
 from sah.algorithms.strategies.base_strategy import BaseStrategy
 
 
 class LoRAStrategy(BaseStrategy):
-    def __init__(self, lr=1e-4, r=8, lora_alpha=32, lora_dropout=0.1):
+    def __init__(self, lr=1e-4, r=8, lora_alpha=32, lora_dropout=0.1, ft_strategy="lora"):
         super().__init__()
         self.lr = lr
         self.r = r
         self.lora_alpha = lora_alpha
         self.lora_dropout = lora_dropout
+        self.ft_strategy = ft_strategy
 
     def setup(self, pl_module, stage):
         super().setup(pl_module, stage)
         if stage == "fit":
+            if self.ft_strategy == "qlora":
+                pl_module.model = prepare_model_for_kbit_training(pl_module.model)
+
             lora_config = LoraConfig(
                 r=self.r,
                 lora_alpha=self.lora_alpha,

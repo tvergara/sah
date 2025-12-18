@@ -24,6 +24,9 @@ class BaseStrategy:
     def on_train_start(self, pl_module):
         pass
 
+    def on_validation_start(self, pl_module):
+        pass
+
     def on_train_batch_start(self, pl_module, batch, batch_idx):
         pass
 

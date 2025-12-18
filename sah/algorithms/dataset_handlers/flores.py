@@ -33,7 +33,7 @@ class FLORESHandler(BaseDatasetHandler):
             french = example['sentence_fra_Latn']
 
         return {
-            "question": f"Translate to French: {english}\nTranslation:",
+            "question": f"English: {english}\nFrench:",
             "answer": f" {french}\n"
         }
 
@@ -56,8 +56,7 @@ class FLORESHandler(BaseDatasetHandler):
 
         for item in raw_dataset:
             formatted = self.format_example(item)
-            prompt = f"{formatted['question']}\nTranslation:"
-            prompts.append(prompt)
+            prompts.append(formatted['question'])
             answers.append(formatted['answer'])
 
         tokenized = self.tokenizer(
@@ -83,8 +82,7 @@ class FLORESHandler(BaseDatasetHandler):
 
             for item in raw_dataset:
                 formatted = self.format_example(item)
-                prompt = f"{formatted['question']}\nTranslation:"
-                prompts.append(prompt)
+                prompts.append(formatted['question'])
                 answers.append(formatted['answer'])
 
             self.validation_data = [

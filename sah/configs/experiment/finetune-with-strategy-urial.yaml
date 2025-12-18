@@ -2,7 +2,7 @@
 
 defaults:
   - finetune-with-strategy
-  - override /algorithm/strategy: baseline
+  - override /algorithm/strategy: urial
 
 trainer:
   enable_checkpointing: false
@@ -14,4 +14,4 @@ trainer:
     gpu_memory_tracker: null
 
 algorithm:
-  experiment_name: baseline
+  experiment_name: urial

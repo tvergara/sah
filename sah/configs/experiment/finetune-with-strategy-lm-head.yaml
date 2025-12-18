@@ -2,16 +2,15 @@
 
 defaults:
   - finetune-with-strategy
-  - override /algorithm/strategy: baseline
+  - override /algorithm/strategy: lm_head
 
 trainer:
   enable_checkpointing: false
-  max_epochs: 0
-  limit_train_batches: 0
+  max_epochs: 4
   callbacks:
     model_checkpoint: null
     early_stopping: null
-    gpu_memory_tracker: null
+  val_check_interval: 1.0
 
 algorithm:
-  experiment_name: baseline
+  experiment_name: lm_head

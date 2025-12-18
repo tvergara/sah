@@ -11,10 +11,7 @@ trainer:
     model_checkpoint: null
     early_stopping: null
   val_check_interval: 1.0
-  strategy:
-    _target_: lightning.pytorch.strategies.FSDPStrategy
-    auto_wrap_policy:
-      _target_: sah.algorithms.utils.fsdp_policies.get_transformer_layer_wrap_policy
+  strategy: auto
 
 algorithm:
   experiment_name: full_ft

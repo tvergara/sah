@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-df = pd.read_json('/network/scratch/b/brownet/hydra-runs/finetune-with-strategy/results.csv', lines=True)
+df = pd.read_json('/network/scratch/b/brownet/hydra-runs/finetune-with-strategy/final-results.jsonl', lines=True)
 
 model_display_names = {
     'smollm': 'SmolLM2-1.7B',
@@ -27,11 +27,13 @@ model_display_names = {
 dataset_display_names = {
     'meta-math/MetaMathQA': 'GSM8K',
     'allenai/nllb': 'FLORES',
+    'ifeval:/network/scratch/b/brownet/correct_ifeval_examples.jsonl': 'IFEval',
 }
 
 dataset_metric_names = {
     'meta-math/MetaMathQA': 'Accuracy',
     'allenai/nllb': 'BLEU',
+    'ifeval:/network/scratch/b/brownet/correct_ifeval_examples.jsonl': 'Score',
 }
 
 def compute_pareto_frontier(model_df, zero_bit_perf=None):
@@ -57,19 +59,19 @@ def compute_pareto_frontier(model_df, zero_bit_perf=None):
     return bits, performance
 
 model_families = {
-    'smollm3': {
+    'SmolLM3': {
         'pretraining': ['smollm3-step40k', 'smollm3-step1720k', 'smollm3-stage1'],
         'posttraining': ['smollm3-stage2', 'smollm3-stage3', 'smollm3']
     },
-    'olmo3': {
+    'Olmo3 7b': {
         'pretraining': ['olmo3-7b-step0', 'olmo3-7b-step707k', 'olmo3-7b-step1414k'],
         'posttraining': ['olmo3-7b-stage2-step6k', 'olmo3-7b-stage2-step12k', 'olmo3-7b-stage2-step24k', 'olmo3-7b-stage2-step48k']
     }
 }
 
-datasets = ['meta-math/MetaMathQA', 'allenai/nllb']
+datasets = ['meta-math/MetaMathQA', 'allenai/nllb', 'ifeval:/network/scratch/b/brownet/correct_ifeval_examples.jsonl']
 
-fig, axes = plt.subplots(2, 2, figsize=(16, 10))
+fig, axes = plt.subplots(2, 3, figsize=(24, 10))
 
 all_legends = {}
 
@@ -117,11 +119,11 @@ for family_idx, (family_name, family_models) in enumerate(model_families.items()
                     linewidth=2,
                     label=model_display, color=model_colors[model_name])
 
-        ax.set_xlabel('Message Length', fontsize=14)
+        ax.set_xlabel('Program Size (bits)', fontsize=14)
         metric_name = dataset_metric_names.get(dataset_name, r'$\delta$')
         ax.set_ylabel(metric_name, fontsize=14)
         dataset_display = dataset_display_names.get(dataset_name, dataset_name)
-        ax.set_title(f'{dataset_display} - {family_name.upper()}', fontsize=16)
+        ax.set_title(f'{dataset_display} - {family_name}', fontsize=16)
         ax.set_xscale('log')
         ax.grid(True, alpha=0.3)
 
@@ -152,12 +154,12 @@ for family_idx, (family_name, family_models) in enumerate(model_families.items()
                        [rightmost_perf, rightmost_perf],
                        linewidth=2, color=model_colors[model_name], linestyle='-')
 
-        if dataset_idx == 1:
+        if dataset_idx == 2:
             handles, labels = ax.get_legend_handles_labels()
             all_legends[family_name] = (handles, labels)
 
 for family_idx, (family_name, (handles, labels)) in enumerate(all_legends.items()):
-    axes[family_idx, 1].legend(handles, labels, loc='lower right', fontsize=10)
+    axes[family_idx, 2].legend(handles, labels, loc='lower right', fontsize=10)
 
 plt.tight_layout(h_pad=3.0)
 plt.savefig('checkpoint_pareto_curves.png', bbox_inches='tight', dpi=300)

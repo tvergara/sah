@@ -28,3 +28,9 @@ device_utilisation:
   _target_: lightning.pytorch.callbacks.DeviceStatsMonitor
 throughput:
   _target_: sah.algorithms.callbacks.samples_per_second.MeasureSamplesPerSecondCallback
+
+gpu_memory_tracker:
+  _target_: sah.algorithms.callbacks.gpu_memory_tracker.GPUMemoryTrackerCallback
+  log_interval: 1
+  device: null
+  log_reserved: true

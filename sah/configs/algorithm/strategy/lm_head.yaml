@@ -1,0 +1,4 @@
+_target_: sah.algorithms.strategies.lm_head.LMHeadStrategy
+_recursive_: false
+_convert_: object
+lr: 1e-4

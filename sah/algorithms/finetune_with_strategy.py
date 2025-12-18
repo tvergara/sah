@@ -56,6 +56,9 @@ class FinetuneWithStrategy(LightningModule):
     def validation_step(self, batch, batch_idx):
         return self.strategy.validation_step(self, batch, batch_idx)
 
+    def on_validation_start(self):
+        self.strategy.on_validation_start(self)
+
     def on_validation_epoch_end(self):
         self.strategy.on_validation_epoch_end(self)
 

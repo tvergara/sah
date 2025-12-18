@@ -52,7 +52,7 @@ class LimaHandler(BaseDatasetHandler):
 
     def get_val_dataset(self):
         self._load_ifeval_data()
-        prompts = [item['prompt'] for item in self.ifeval_data]
+        prompts = [f"Instruction: {item['prompt']}\nAnswer:" for item in self.ifeval_data]
 
         tokenized = self.tokenizer(
             prompts,
@@ -71,7 +71,7 @@ class LimaHandler(BaseDatasetHandler):
             prompts = [item['prompt'] for item in self.ifeval_data]
 
             self.validation_data = [
-                {"question": q, "expected_answer": ""}
+                {"question": f"Instruction: {q}\nAnswer:", "expected_answer": "", "raw_prompt": q}
                 for q in prompts
             ]
 
@@ -81,6 +81,7 @@ class LimaHandler(BaseDatasetHandler):
         input_ids = batch['input_ids']
         attention_mask = batch['attention_mask']
         prompts = batch.get('question', batch.get('expected_answer'))
+        raw_prompts = batch.get('raw_prompt', prompts)
 
         with torch.no_grad():
             generated = pl_module.model.generate(
@@ -94,17 +95,16 @@ class LimaHandler(BaseDatasetHandler):
         decoding_starts = input_ids.shape[1]
         for i, gen_tokens in enumerate(generated):
             decoded = self.tokenizer.decode(gen_tokens[decoding_starts:], skip_special_tokens=True)
-            prompt = prompts[i]
+            raw_prompt = raw_prompts[i] if isinstance(raw_prompts, list) else prompts[i]
 
             self.generations.append({
-                "prompt": prompt,
+                "prompt": raw_prompt,
                 "response": decoded
             })
 
-            if prompt in self.prompt_to_ifeval:
-                ifeval_entry = self.prompt_to_ifeval[prompt]
-                if ifeval_entry not in self.used_ifeval_data:
-                    self.used_ifeval_data.append(ifeval_entry)
+            ifeval_entry = self.prompt_to_ifeval[raw_prompt]
+            if ifeval_entry not in self.used_ifeval_data:
+                self.used_ifeval_data.append(ifeval_entry)
 
         total_count = len(generated)
         return {"performance": 0.0, "correct_count": 0.0, "total_count": float(total_count)}

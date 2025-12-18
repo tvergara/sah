@@ -112,7 +112,7 @@ def main():
     parser.add_argument(
         '--csv',
         type=str,
-        default='/network/scratch/b/brownet/hydra-runs/finetune-with-strategy/results.csv',
+        default='/network/scratch/b/brownet/hydra-runs/finetune-with-strategy/final-results.jsonl',
         help='Path to results jsonl file'
     )
 
