@@ -48,20 +48,20 @@ def prepare_model(model, learn_gates, quantize, learn_scales):
         trainable_params.extend(["x_min", "x_max", "s_2"])
 
     for name, param in model.named_parameters():
-        if name.startswith("model"):
-            param.requires_grad = False
-            for trainable_param in trainable_params:
-                exclude = False
-                for excl in excluded_params:
-                    if excl in name:
-                        exclude = True
-                        break
-
-                if trainable_param in name and not exclude:
-                    param.requires_grad = True
+        # if name.startswith("model"):
+        param.requires_grad = False
+        for trainable_param in trainable_params:
+            exclude = False
+            for excl in excluded_params:
+                if excl in name:
+                    exclude = True
                     break
-        else:
-            param.requires_grad = False
+
+            if trainable_param in name and not exclude:
+                param.requires_grad = True
+                break
+        # else:
+        #     param.requires_grad = False
     # if args.train_head:
     #     model.lm_head.weight.requires_grad = True
     #     if model.lm_head.bias is not None:
@@ -77,8 +77,7 @@ def get_accelerate_model(
     fixed_full_precision,
     fixed_8bit,
     lora_r=64,
-    # lora_module="query,key,value,intermediate,layer.output,attention.output",
-    lora_module="q_proj,k_proj,v_proj,up_proj,down_proj,o_proj,gate_proj",
+    lora_module="q_proj,k_proj,v_proj,up_proj,down_proj,o_proj,gate_proj,lm_head",
 ):
     if quantize or prune_rank:
         quant_params = {
@@ -90,7 +89,6 @@ def get_accelerate_model(
             "fixed_full_precision": fixed_full_precision,
             "fixed_8bit": fixed_8bit,
         }
-
         model = quantize_apply_lora_model(
             model,
             "",
@@ -138,7 +136,6 @@ class BLoRAStrategy(BaseStrategy):
 
     def setup(self, pl_module, stage):
         super().setup(pl_module, stage)
-        # if stage == "fit":
         model = get_accelerate_model(
             pl_module.model,
             quantize=self.quantize,
@@ -158,10 +155,6 @@ class BLoRAStrategy(BaseStrategy):
                     module.device = pl_module.device
             except:
                 pass
-
-    # def on_train_start(self, pl_module):
-    #     self.bits = 0
-    #     return super().on_train_start(pl_module)
 
     def on_validation_epoch_end(self, pl_module):
         self.bits = self.compute_bits(pl_module)
@@ -259,7 +252,7 @@ class BLoRAStrategy(BaseStrategy):
     def compute_bits(self, pl_module):
 
         total_bits = 0
-        for name, module in pl_module.model.named_modules():
+        for name, module in pl_module.named_modules():
             if isinstance(module, LoraSVDQuantLinear):
                 if module.prune_rank:
                     q = module.lora_E_quantizer.quantizer
