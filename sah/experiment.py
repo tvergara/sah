@@ -77,7 +77,8 @@ def train_and_evaluate(
         )
 
     if not (
-        isinstance(algorithm, lightning.LightningModule) and isinstance(trainer, lightning.Trainer)
+        isinstance(algorithm, lightning.LightningModule)
+        and isinstance(trainer, lightning.Trainer)
     ):
         _this_fn_name = train_and_evaluate.__name__  # type: ignore
         raise NotImplementedError(
@@ -87,7 +88,9 @@ def train_and_evaluate(
             f"You can register a new handler for that algorithm type using "
             f"`@{_this_fn_name}.register`.\n"
             f"Registered handlers: "
-            + "\n\t".join([f"- {k}: {v.__name__}" for k, v in train_and_evaluate.registry.items()])
+            + "\n\t".join(
+                [f"- {k}: {v.__name__}" for k, v in train_and_evaluate.registry.items()]
+            )
         )
 
     # Train the algorithm.
@@ -124,7 +127,7 @@ def train_lightning(
         elif config.datamodule is not None:
             datamodule = hydra.utils.instantiate(config.datamodule)
 
-    trainer.validate(algorithm, datamodule=datamodule)
+    # trainer.validate(algorithm, datamodule=datamodule)
     trainer.fit(algorithm, datamodule=datamodule, ckpt_path=config.ckpt_path)
     return algorithm
 
@@ -198,7 +201,9 @@ def instantiate_trainer(trainer_config: dict | DictConfig) -> lightning.Trainer 
     trainer_config = trainer_config.copy()  # Avoid mutating the config.
     callbacks: list | None = instantiate_values(trainer_config.pop("callbacks", None))
     logger: list | None = instantiate_values(trainer_config.pop("logger", None))
-    trainer = hydra.utils.instantiate(trainer_config, callbacks=callbacks, logger=logger)
+    trainer = hydra.utils.instantiate(
+        trainer_config, callbacks=callbacks, logger=logger
+    )
     return trainer
 
 
