@@ -1,0 +1,15 @@
+_target_: sah.algorithms.strategies.blora.blora.BLoRAStrategy
+_recursive_: false
+_convert_: object
+r: 64
+quant_loss_lambda: 1.e-3
+rank_loss_lambda: 1.e-3
+gates_lr: 0.01
+scales_lr: 0.01
+prune_rank: True
+quantize: True
+learn_gates: True
+learn_scales: True
+fixed_full_precision: False
+fixed_8bit: False
+weight_decay: 0.001

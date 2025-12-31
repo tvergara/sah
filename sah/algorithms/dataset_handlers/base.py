@@ -1,10 +1,16 @@
 from datasets import load_dataset
 from torch.utils.data import Dataset
-from tqdm import tqdm
 
 
 class BaseDatasetHandler:
-    def __init__(self, tokenizer, dataset_name, block_size=1548, max_examples=None, generations_dir=None):
+    def __init__(
+        self,
+        tokenizer,
+        dataset_name,
+        block_size=1548,
+        max_examples=None,
+        generations_dir=None,
+    ):
         self.tokenizer = tokenizer
         self.dataset_name = dataset_name
         self.block_size = block_size
@@ -30,25 +36,65 @@ class BaseDatasetHandler:
 
 
 class ProcessedTrainDataset(Dataset):
-    def __init__(self, tokenizer, dataset_name, format_fn, block_size=1548, max_examples=None, split_str=None, config_name=None, streaming=False):
+    def __init__(
+        self,
+        tokenizer,
+        dataset_name,
+        format_fn,
+        block_size=1548,
+        max_examples=None,
+        split_str=None,
+        config_name=None,
+        streaming=False,
+    ):
 
         if split_str is None:
             split_str = f"train[:{max_examples}]" if max_examples else "train"
 
         if config_name is not None:
-            raw_dataset = load_dataset(dataset_name, config_name, split=split_str, streaming=streaming, trust_remote_code=True)
+            raw_dataset = load_dataset(
+                dataset_name,
+                config_name,
+                split=split_str,
+                streaming=streaming,
+                trust_remote_code=True,
+            )
         else:
-            raw_dataset = load_dataset(dataset_name, split=split_str, streaming=streaming, trust_remote_code=True)
+            raw_dataset = load_dataset(
+                dataset_name,
+                split=split_str,
+                streaming=streaming,
+                trust_remote_code=True,
+            )
+        assert not isinstance(raw_dataset, dict)
 
         if streaming and max_examples:
             raw_dataset = raw_dataset.take(max_examples)
 
-        self.examples = []
+        process_fn = create_process_fn(tokenizer, format_fn, block_size)
+        self.dataset = raw_dataset.map(
+            process_fn,
+            remove_columns=raw_dataset.column_names,
+            num_proc=8,
+            batched=True,
+        )
 
-        for example in tqdm(raw_dataset):
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, idx):
+        return self.dataset[idx]
+
+
+def create_process_fn(tokenizer, format_fn, block_size):
+    def process_fn(examples):
+        processed = {"input_ids": [], "attention_mask": [], "labels": []}
+        keys = examples.keys()
+
+        for example in [dict(zip(keys, values)) for values in zip(*examples.values())]:
             formatted = format_fn(example)
-            question_text = formatted['question']
-            answer_text = formatted['answer']
+            question_text = formatted["question"]
+            answer_text = formatted["answer"]
 
             question_ids = tokenizer.encode(question_text, add_special_tokens=False)
             answer_ids = tokenizer.encode(answer_text, add_special_tokens=False)
@@ -67,17 +113,12 @@ class ProcessedTrainDataset(Dataset):
                 labels = full_ids.copy()
                 labels[:question_length] = [-100] * question_length
 
-                self.examples.append({
-                    "input_ids": full_ids,
-                    "attention_mask": [1] * len(full_ids),
-                    "labels": labels
-                })
+                processed["input_ids"].append(full_ids)
+                processed["attention_mask"].append([1] * len(full_ids))
+                processed["labels"].append(labels)
+        return processed
 
-    def __len__(self):
-        return len(self.examples)
-
-    def __getitem__(self, idx):
-        return self.examples[idx]
+    return process_fn
 
 
 class GenerationValDataset(Dataset):
@@ -91,7 +132,7 @@ class GenerationValDataset(Dataset):
 
     def __getitem__(self, idx):
         return {
-            'input_ids': self.input_ids[idx],
-            'attention_mask': self.attention_masks[idx],
-            'expected_answer': self.answers[idx]
+            "input_ids": self.input_ids[idx],
+            "attention_mask": self.attention_masks[idx],
+            "expected_answer": self.answers[idx],
         }
