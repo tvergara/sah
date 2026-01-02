@@ -77,7 +77,7 @@ def get_accelerate_model(
     fixed_full_precision,
     fixed_8bit,
     lora_r=64,
-    lora_module="q_proj,k_proj,v_proj,up_proj,down_proj,o_proj,gate_proj,lm_head",
+    lora_module="q_proj,k_proj,v_proj,up_proj,down_proj,o_proj,gate_proj",
 ):
     if quantize or prune_rank:
         quant_params = {
