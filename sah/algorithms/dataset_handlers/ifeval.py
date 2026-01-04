@@ -102,10 +102,11 @@ class IFEvalHandler(BaseDatasetHandler):
 
     def get_val_dataset(self):
         self._load_ifeval_data()
-        prompts = [f"<|im_start|>user\n{item['prompt']}\n<|im_start|>assistant" for item in self.ifeval_data]
+        raw_prompts = [item['prompt'] for item in self.ifeval_data]
+        formatted_prompts = [f"<|im_start|>user\n{p}\n<|im_start|>assistant" for p in raw_prompts]
 
         tokenized = self.tokenizer(
-            prompts,
+            formatted_prompts,
             return_tensors="pt",
             padding=True,
             truncation=True,
@@ -113,7 +114,7 @@ class IFEvalHandler(BaseDatasetHandler):
             padding_side='left',
         )
 
-        return GenerationValDataset(tokenized['input_ids'], tokenized['attention_mask'], prompts)
+        return GenerationValDataset(tokenized['input_ids'], tokenized['attention_mask'], raw_prompts)
 
     def get_raw_val_data(self):
         if self.validation_data is None:
@@ -130,8 +131,7 @@ class IFEvalHandler(BaseDatasetHandler):
     def validate_batch(self, pl_module, batch, batch_idx):
         input_ids = batch['input_ids']
         attention_mask = batch['attention_mask']
-        prompts = batch.get('question', batch.get('expected_answer'))
-        raw_prompts = batch.get('raw_prompt', prompts)
+        raw_prompts = batch.get('raw_prompt', batch.get('expected_answer'))
 
         with torch.no_grad():
             generated = pl_module.model.generate(
@@ -145,7 +145,7 @@ class IFEvalHandler(BaseDatasetHandler):
         decoding_starts = input_ids.shape[1]
         for i, gen_tokens in enumerate(generated):
             decoded = self.tokenizer.decode(gen_tokens[decoding_starts:], skip_special_tokens=True)
-            raw_prompt = raw_prompts[i] if isinstance(raw_prompts, list) else prompts[i]
+            raw_prompt = raw_prompts[i]
 
             if "<im_start>" in decoded:
                 decoded = decoded[:decoded.index("<im_start>")]
