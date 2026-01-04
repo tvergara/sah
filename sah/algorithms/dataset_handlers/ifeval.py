@@ -25,8 +25,8 @@ class IFEvalTrainDataset(Dataset):
             question = conversations[0]
             answer = conversations[1]
 
-            question_text = f"Instruction: {question}\nAnswer:"
-            answer_text = f" {answer}"
+            question_text = f"<|im_start|>user\n{question}\n<|im_start|>assistant"
+            answer_text = f"\n{answer}\n<|im_start|>user"
 
             question_ids = tokenizer.encode(question_text, add_special_tokens=False)
             answer_ids = tokenizer.encode(answer_text, add_special_tokens=False)
@@ -70,8 +70,8 @@ class IFEvalHandler(BaseDatasetHandler):
         answer = conversations[1]
 
         return {
-            "question": f"Instruction: {question}\nAnswer:",
-            "answer": f" {answer}"
+            "question": f"<|im_start|>user\n{question}\n<|im_start|>assistant",
+            "answer": f"\n{answer}\n<|im_start|>user"
         }
 
     def get_train_dataset(self):
@@ -102,7 +102,7 @@ class IFEvalHandler(BaseDatasetHandler):
 
     def get_val_dataset(self):
         self._load_ifeval_data()
-        prompts = [f"Instruction: {item['prompt']}\nAnswer:" for item in self.ifeval_data]
+        prompts = [f"<|im_start|>user\n{item['prompt']}\n<|im_start|>assistant" for item in self.ifeval_data]
 
         tokenized = self.tokenizer(
             prompts,
@@ -121,7 +121,7 @@ class IFEvalHandler(BaseDatasetHandler):
             prompts = [item['prompt'] for item in self.ifeval_data]
 
             self.validation_data = [
-                {"question": f"Instruction: {q}\nAnswer:", "expected_answer": "", "raw_prompt": q}
+                {"question": f"<|im_start|>user\n{q}\n<|im_start|>assistant", "expected_answer": "", "raw_prompt": q}
                 for q in prompts
             ]
 
@@ -147,8 +147,8 @@ class IFEvalHandler(BaseDatasetHandler):
             decoded = self.tokenizer.decode(gen_tokens[decoding_starts:], skip_special_tokens=True)
             raw_prompt = raw_prompts[i] if isinstance(raw_prompts, list) else prompts[i]
 
-            if raw_prompt.startswith("Instruction: ") and "\nAnswer:" in raw_prompt:
-                raw_prompt = raw_prompt.replace("Instruction: ", "").replace("\nAnswer:", "")
+            if "<im_start>" in decoded:
+                decoded = decoded[:decoded.index("<im_start>")]
 
             self.generations.append({
                 "prompt": raw_prompt,

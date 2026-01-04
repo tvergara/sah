@@ -20,6 +20,7 @@ class OnlineCodingStrategy(BaseStrategy):
 
     def setup(self, pl_module, stage):
         super().setup(pl_module, stage)
+        self.max_examples = pl_module.max_examples
         if stage == "fit" and self.ft_strategy in ["lora", "qlora"]:
             if self.ft_strategy == "qlora":
                 pl_module.model = prepare_model_for_kbit_training(pl_module.model)

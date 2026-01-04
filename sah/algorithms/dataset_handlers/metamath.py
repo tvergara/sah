@@ -86,7 +86,7 @@ class MetaMathHandler(BaseDatasetHandler):
                 max_new_tokens=pl_module.max_length,
                 do_sample=False,
                 pad_token_id=self.tokenizer.eos_token_id
-            )
+        )
 
         correct_count = 0
         total_count = 0

@@ -4,8 +4,8 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --gres=gpu:a100l:1
 #SBATCH --mem=80G
-#SBATCH --time=14:00:00
-#SBATCH -o /network/scratch/b/brownet/slurm-logs/slurm-%j.out
+#SBATCH --time=20:00:00
+#SBATCH -o /network/scratch/b/brownet/slurm-logs/slurm-%A_%a.out
 
 source ~/.bashrc
 
@@ -13,4 +13,10 @@ cd ~/sah
 
 . .venv/bin/activate
 
-python scripts/generate_it_data.py
+NUM_SPLITS=${1:-150}
+
+if [ "$NUM_SPLITS" -gt 1 ]; then
+    python scripts/generate_it_data.py --num_splits $NUM_SPLITS --split_index $SLURM_ARRAY_TASK_ID
+else
+    python scripts/generate_it_data.py
+fi

@@ -12,5 +12,5 @@ trainer:
   val_check_interval: 1.0
 
 algorithm:
-  max_examples: 80
+  max_examples: 2048
   experiment_name: phase-one

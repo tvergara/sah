@@ -44,24 +44,22 @@ English: For Bauman, modern humans need strong commitments.
 
 French: Pour Bauman, les humains modernes ont besoin d\u2019engagements forts.
 """,
-    "ifeval:/network/scratch/b/brownet/correct_ifeval_examples.jsonl": """# System
+    "ifeval:/network/scratch/b/brownet/correct_ifeval_examples.jsonl": """<|im_start|>system
 You are a helpful, respectful and honest assistant. You carefully follow instructions to every detail possible.
 
-# Instruction
-Follow the instructions in the prompt exactly as specified.
-
-Instruction: Describe the purpose of internet protocol version 6 (IPv6).
+<|im_start|>user
+Describe the purpose of internet protocol version 6 (IPv6).
 
 Your entire response should be in English, and in all lowercase letters. No capital letters are allowed.
-
-Answer: ipv6 is designed to replace ipv4 as the internet\u2019s addressing system. it provides a much larger pool of unique addresses to accommodate the growing number of devices connected to the internet. additionally, ipv6 improves efficiency by reducing the size of header fields and enabling simpler routing. it also includes features like built-in security extensions and autoconfiguration to simplify network administration.
-
-Instruction: Your entire response should be in English, capital letters only. Which country has the largest population in the world?
-
-Answer: CHINA
+<|im_start|>assistant
+ipv6 is designed to replace ipv4 as the internet\u2019s addressing system. it provides a much larger pool of unique addresses to accommodate the growing number of devices connected to the internet. additionally, ipv6 improves efficiency by reducing the size of header fields and enabling simpler routing. it also includes features like built-in security extensions and autoconfiguration to simplify network administration.
+<|im_start|>user
+Your entire response should be in English, capital letters only. Which country has the largest population in the world?
+<|im_start|>assistant
+CHINA
 """,
 }
-
+DATASET_PROMPTS["ifeval:/network/scratch/b/brownet/correct_ifeval_examples_extended_32.jsonl"] = DATASET_PROMPTS["ifeval:/network/scratch/b/brownet/correct_ifeval_examples.jsonl"]
 
 class URIALStrategy(BaseStrategy):
     def __init__(self):
