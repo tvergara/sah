@@ -74,13 +74,13 @@ SCALES_LR=(1e-2 2e-3)
 # echo "SmolLM3-Stage1 + MetaMath (phase-one)"
 # sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh smollm3-stage1 metamath phase-one seed=1
 
-# SmolLM3-Stage1 + MetaMath + Phase Two
-for lr in "${LR_PHASE_TWO[@]}"; do
-  for grads in "${GRADS_IN_MEMORY[@]}"; do
-    echo "SmolLM3-Stage1 + MetaMath (phase-two, lr=$lr, grads_in_memory=$grads)"
-    sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh smollm3-stage1 metamath phase-two seed=1 algorithm.strategy.lr=$lr algorithm.strategy.grads_in_memory=$grads
-  done
-done
+# # SmolLM3-Stage1 + MetaMath + Phase Two
+# for lr in "${LR_PHASE_TWO[@]}"; do
+#   for grads in "${GRADS_IN_MEMORY[@]}"; do
+#     echo "SmolLM3-Stage1 + MetaMath (phase-two, lr=$lr, grads_in_memory=$grads)"
+#     sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh smollm3-stage1 metamath phase-two seed=1 algorithm.strategy.lr=$lr algorithm.strategy.grads_in_memory=$grads
+#   done
+# done
 
 # # SmolLM3-Stage1 + FLORES + Online Coding
 # for seed in "${SEEDS[@]}"; do
@@ -141,13 +141,13 @@ done
 # echo "SmolLM3-Stage1 + FLORES (phase-one)"
 # sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh smollm3-stage1 flores phase-one seed=1
 
-# SmolLM3-Stage1 + FLORES + Phase Two
-for lr in "${LR_PHASE_TWO[@]}"; do
-  for grads in "${GRADS_IN_MEMORY[@]}"; do
-    echo "SmolLM3-Stage1 + FLORES (phase-two, lr=$lr, grads_in_memory=$grads)"
-    sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh smollm3-stage1 flores phase-two seed=1 algorithm.strategy.lr=$lr algorithm.strategy.grads_in_memory=$grads
-  done
-done
+# # SmolLM3-Stage1 + FLORES + Phase Two
+# for lr in "${LR_PHASE_TWO[@]}"; do
+#   for grads in "${GRADS_IN_MEMORY[@]}"; do
+#     echo "SmolLM3-Stage1 + FLORES (phase-two, lr=$lr, grads_in_memory=$grads)"
+#     sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh smollm3-stage1 flores phase-two seed=1 algorithm.strategy.lr=$lr algorithm.strategy.grads_in_memory=$grads
+#   done
+# done
 
 # # SmolLM3-Stage1 + IFEval + Online Coding
 # for seed in "${SEEDS[@]}"; do
@@ -159,11 +159,11 @@ done
 #   done
 # done
 
-# # SmolLM3-Stage1 + IFEval + ICL
-# for seed in "${SEEDS[@]}"; do
-#   echo "SmolLM3-Stage1 + IFEval (icl, seed=$seed)"
-#   sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh smollm3-stage1 ifeval icl algorithm.batch_size=1 seed=$seed
-# done
+# SmolLM3-Stage1 + IFEval + ICL
+for seed in "${SEEDS[@]}"; do
+  echo "SmolLM3-Stage1 + IFEval (icl, seed=$seed)"
+  sbatch --gres=gpu:1 slurm/run-experiment.sh smollm3-stage1 ifeval icl algorithm.batch_size=1 seed=$seed
+done
 
 # # SmolLM3-Stage1 + IFEval + Full FT
 # for seed in "${SEEDS[@]}"; do
@@ -181,13 +181,13 @@ done
 #   done
 # done
 
-# # SmolLM3-Stage1 + IFEval + Baseline
-# echo "SmolLM3-Stage1 + IFEval (baseline)"
-# sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh smollm3-stage1 ifeval baseline seed=1
+# SmolLM3-Stage1 + IFEval + Baseline
+echo "SmolLM3-Stage1 + IFEval (baseline)"
+sbatch --gres=gpu:1 slurm/run-experiment.sh smollm3-stage1 ifeval baseline seed=1
 
-# # SmolLM3-Stage1 + IFEval + URIAL
-# echo "SmolLM3-Stage1 + IFEval (urial)"
-# sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh smollm3-stage1 ifeval urial seed=1
+# SmolLM3-Stage1 + IFEval + URIAL
+echo "SmolLM3-Stage1 + IFEval (urial)"
+sbatch --gres=gpu:1 slurm/run-experiment.sh smollm3-stage1 ifeval urial seed=1
 
 # # SmolLM3-Stage1 + IFEval + LM Head
 # echo "SmolLM3-Stage1 + IFEval (lm-head)"
@@ -279,13 +279,13 @@ done
 # echo "OLMo3-7B-Step1414k + MetaMath (phase-one)"
 # sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh olmo3-7b-step1414k metamath phase-one seed=1
 
-# OLMo3-7B-Step1414k + MetaMath + Phase Two
-for lr in "${LR_PHASE_TWO[@]}"; do
-  for grads in "${GRADS_IN_MEMORY[@]}"; do
-    echo "OLMo3-7B-Step1414k + MetaMath (phase-two, lr=$lr, grads_in_memory=$grads)"
-    sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh olmo3-7b-step1414k metamath phase-two seed=1 algorithm.strategy.lr=$lr algorithm.strategy.grads_in_memory=$grads
-  done
-done
+# # OLMo3-7B-Step1414k + MetaMath + Phase Two
+# for lr in "${LR_PHASE_TWO[@]}"; do
+#   for grads in "${GRADS_IN_MEMORY[@]}"; do
+#     echo "OLMo3-7B-Step1414k + MetaMath (phase-two, lr=$lr, grads_in_memory=$grads)"
+#     sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh olmo3-7b-step1414k metamath phase-two seed=1 algorithm.strategy.lr=$lr algorithm.strategy.grads_in_memory=$grads
+#   done
+# done
 
 # # OLMo3-7B-Step1414k + FLORES + Online Coding
 # for seed in "${SEEDS[@]}"; do
@@ -346,13 +346,13 @@ done
 # echo "OLMo3-7B-Step1414k + FLORES (phase-one)"
 # sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh olmo3-7b-step1414k flores phase-one seed=1
 
-# OLMo3-7B-Step1414k + FLORES + Phase Two
-for lr in "${LR_PHASE_TWO[@]}"; do
-  for grads in "${GRADS_IN_MEMORY[@]}"; do
-    echo "OLMo3-7B-Step1414k + FLORES (phase-two, lr=$lr, grads_in_memory=$grads)"
-    sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh olmo3-7b-step1414k flores phase-two seed=1 algorithm.strategy.lr=$lr algorithm.strategy.grads_in_memory=$grads
-  done
-done
+# # OLMo3-7B-Step1414k + FLORES + Phase Two
+# for lr in "${LR_PHASE_TWO[@]}"; do
+#   for grads in "${GRADS_IN_MEMORY[@]}"; do
+#     echo "OLMo3-7B-Step1414k + FLORES (phase-two, lr=$lr, grads_in_memory=$grads)"
+#     sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh olmo3-7b-step1414k flores phase-two seed=1 algorithm.strategy.lr=$lr algorithm.strategy.grads_in_memory=$grads
+#   done
+# done
 
 # # OLMo3-7B-Step1414k + IFEval + Online Coding
 # for seed in "${SEEDS[@]}"; do
@@ -364,11 +364,11 @@ done
 #   done
 # done
 
-# # OLMo3-7B-Step1414k + IFEval + ICL
-# for seed in "${SEEDS[@]}"; do
-#   echo "OLMo3-7B-Step1414k + IFEval (icl, seed=$seed)"
-#   sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh olmo3-7b-step1414k ifeval icl algorithm.batch_size=1 seed=$seed
-# done
+# OLMo3-7B-Step1414k + IFEval + ICL
+for seed in "${SEEDS[@]}"; do
+  echo "OLMo3-7B-Step1414k + IFEval (icl, seed=$seed)"
+  sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-step1414k ifeval icl algorithm.batch_size=1 seed=$seed
+done
 
 # # OLMo3-7B-Step1414k + IFEval + Full FT
 # for seed in "${SEEDS[@]}"; do
@@ -386,13 +386,13 @@ done
 #   done
 # done
 
-# # OLMo3-7B-Step1414k + IFEval + Baseline
-# echo "OLMo3-7B-Step1414k + IFEval (baseline)"
-# sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh olmo3-7b-step1414k ifeval baseline seed=1
+# OLMo3-7B-Step1414k + IFEval + Baseline
+echo "OLMo3-7B-Step1414k + IFEval (baseline)"
+sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-step1414k ifeval baseline seed=1
 
-# # OLMo3-7B-Step1414k + IFEval + URIAL
-# echo "OLMo3-7B-Step1414k + IFEval (urial)"
-# sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh olmo3-7b-step1414k ifeval urial seed=1
+# OLMo3-7B-Step1414k + IFEval + URIAL
+echo "OLMo3-7B-Step1414k + IFEval (urial)"
+sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-step1414k ifeval urial seed=1
 
 # # OLMo3-7B-Step1414k + IFEval + LM Head
 # echo "OLMo3-7B-Step1414k + IFEval (lm-head)"
@@ -476,13 +476,13 @@ done
 # echo "OLMo3-32B-Step656k + MetaMath (phase-one)"
 # sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh olmo3-32b-step656k metamath phase-one seed=1
 
-# OLMo3-32B-Step656k + MetaMath + Phase Two
-for lr in "${LR_PHASE_TWO[@]}"; do
-  for grads in "${GRADS_IN_MEMORY[@]}"; do
-    echo "OLMo3-32B-Step656k + MetaMath (phase-two, lr=$lr, grads_in_memory=$grads)"
-    sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh olmo3-32b-step656k metamath phase-two seed=1 algorithm.strategy.lr=$lr algorithm.strategy.grads_in_memory=$grads
-  done
-done
+# # OLMo3-32B-Step656k + MetaMath + Phase Two
+# for lr in "${LR_PHASE_TWO[@]}"; do
+#   for grads in "${GRADS_IN_MEMORY[@]}"; do
+#     echo "OLMo3-32B-Step656k + MetaMath (phase-two, lr=$lr, grads_in_memory=$grads)"
+#     sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh olmo3-32b-step656k metamath phase-two seed=1 algorithm.strategy.lr=$lr algorithm.strategy.grads_in_memory=$grads
+#   done
+# done
 
 # # OLMo3-32B-Step656k + FLORES + Online Coding (QLoRA)
 # for seed in "${SEEDS[@]}"; do
@@ -535,13 +535,13 @@ done
 # echo "OLMo3-32B-Step656k + FLORES (phase-one)"
 # sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh olmo3-32b-step656k flores phase-one seed=1
 
-# OLMo3-32B-Step656k + FLORES + Phase Two
-for lr in "${LR_PHASE_TWO[@]}"; do
-  for grads in "${GRADS_IN_MEMORY[@]}"; do
-    echo "OLMo3-32B-Step656k + FLORES (phase-two, lr=$lr, grads_in_memory=$grads)"
-    sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh olmo3-32b-step656k flores phase-two seed=1 algorithm.strategy.lr=$lr algorithm.strategy.grads_in_memory=$grads
-  done
-done
+# # OLMo3-32B-Step656k + FLORES + Phase Two
+# for lr in "${LR_PHASE_TWO[@]}"; do
+#   for grads in "${GRADS_IN_MEMORY[@]}"; do
+#     echo "OLMo3-32B-Step656k + FLORES (phase-two, lr=$lr, grads_in_memory=$grads)"
+#     sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh olmo3-32b-step656k flores phase-two seed=1 algorithm.strategy.lr=$lr algorithm.strategy.grads_in_memory=$grads
+#   done
+# done
 
 # OLMo3-32B-Step656k + IFEval + Online Coding (QLoRA) - PARTIAL
 # for seed in "${SEEDS[@]}"; do
