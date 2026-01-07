@@ -1,0 +1,11 @@
+# @package _global_
+
+algorithm:
+  model_name: olmo3-7b-instruct-step400
+  tokenizer_config:
+    pretrained_model_name_or_path: allenai/Olmo-3-7B-Instruct
+    revision: step_400
+  model_config:
+    pretrained_model_name_or_path: allenai/Olmo-3-7B-Instruct
+    revision: step_400
+    torch_dtype: bfloat16

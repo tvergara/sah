@@ -1,0 +1,9 @@
+# @package _global_
+
+algorithm:
+  model_name: olmo3-1025-7b
+  tokenizer_config:
+    pretrained_model_name_or_path: allenai/Olmo-3-1025-7B
+  model_config:
+    pretrained_model_name_or_path: allenai/Olmo-3-1025-7B
+    torch_dtype: bfloat16
