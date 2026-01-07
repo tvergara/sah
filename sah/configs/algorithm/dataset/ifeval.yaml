@@ -1,7 +1,7 @@
 # @package _global_
 
 algorithm:
-  dataset_name: ifeval:/network/scratch/b/brownet/correct_ifeval_examples_extended_32.jsonl
+  dataset_name: ifeval:${oc.env:SCRATCH}/correct_ifeval_examples_extended_32_clean.jsonl
   max_examples: null
   batch_size: 8
   val_batch_size: 16

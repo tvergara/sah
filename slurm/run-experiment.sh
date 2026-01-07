@@ -4,7 +4,7 @@
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=48G
 #SBATCH --time=10:00:00
-#SBATCH -o /network/scratch/b/brownet/slurm-logs/slurm-%j.out
+#SBATCH -o $SCRATCH/slurm-logs/slurm-%j.out
 
 # Usage: sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh qwen metamath adam
 # Usage: sbatch --gres=gpu:a100l:2 slurm/run-experiment.sh qwen metamath adam algorithm.batch_size=4

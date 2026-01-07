@@ -1,8 +1,12 @@
+import os
+
 import torch
 from torch.utils.data import DataLoader, Dataset
 
 from sah.algorithms.strategies.base_strategy import BaseStrategy
 from sah.algorithms.utils.arithmetic_coding import compute_bits_from_logits
+
+SCRATCH_DIR = os.environ.get('SCRATCH', '/network/scratch/b/brownet')
 
 DATASET_PROMPTS = {
     "meta-math/MetaMathQA": """# System
@@ -44,7 +48,7 @@ English: For Bauman, modern humans need strong commitments.
 
 French: Pour Bauman, les humains modernes ont besoin d\u2019engagements forts.
 """,
-    "ifeval:/network/scratch/b/brownet/correct_ifeval_examples.jsonl": """<|im_start|>system
+    f"ifeval:{SCRATCH_DIR}/correct_ifeval_examples.jsonl": """<|im_start|>system
 You are a helpful, respectful and honest assistant. You carefully follow instructions to every detail possible.
 
 <|im_start|>user
@@ -59,7 +63,8 @@ Your entire response should be in English, capital letters only. Which country h
 CHINA
 """,
 }
-DATASET_PROMPTS["ifeval:/network/scratch/b/brownet/correct_ifeval_examples_extended_32.jsonl"] = DATASET_PROMPTS["ifeval:/network/scratch/b/brownet/correct_ifeval_examples.jsonl"]
+DATASET_PROMPTS[f"ifeval:{SCRATCH_DIR}/correct_ifeval_examples_extended_32.jsonl"] = DATASET_PROMPTS[f"ifeval:{SCRATCH_DIR}/correct_ifeval_examples.jsonl"]
+DATASET_PROMPTS[f"ifeval:{SCRATCH_DIR}/correct_ifeval_examples_extended_32_clean.jsonl"] = DATASET_PROMPTS[f"ifeval:{SCRATCH_DIR}/correct_ifeval_examples.jsonl"]
 
 class URIALStrategy(BaseStrategy):
     def __init__(self):

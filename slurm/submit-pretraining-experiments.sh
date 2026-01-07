@@ -6,11 +6,14 @@ echo ""
 SEEDS=(1)
 LR_ONLINE_CODING=(1e-4 1e-5)
 LR_FULL_FT=(1e-5 1e-6)
+LR_PHASE_TWO=(1e-4 1e-5)
 MAX_EXAMPLES=(8 16 32 64 128 256 512 1024 2048 4096 8192 16384 32768)
+GRADS_IN_MEMORY=(8 32 128 512)
+SCALES_LR=(1e-2 2e-3)
 
-# ################################################################################
-# # SmolLM3-Stage1
-# ################################################################################
+################################################################################
+# SmolLM3-Stage1
+################################################################################
 
 # # SmolLM3-Stage1 + MetaMath + Online Coding
 # for seed in "${SEEDS[@]}"; do
@@ -56,6 +59,29 @@ MAX_EXAMPLES=(8 16 32 64 128 256 512 1024 2048 4096 8192 16384 32768)
 # echo "SmolLM3-Stage1 + MetaMath (lm-head)"
 # sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh smollm3-stage1 metamath lm-head seed=1
 
+# # SmolLM3-Stage1 + MetaMath + BLoRA
+# for seed in "${SEEDS[@]}"; do
+#   for scales_lr in "${SCALES_LR[@]}"; do
+#     echo "SmolLM3-Stage1 + MetaMath (blora, seed=$seed, scales_lr=$scales_lr, r=1, prune_rank=False)"
+#     sbatch --gres=gpu:a100l:1 --time=48:00:00 slurm/run-experiment.sh smollm3-stage1 metamath blora seed=$seed algorithm.strategy.scales_lr=$scales_lr algorithm.strategy.r=1 algorithm.strategy.prune_rank=False
+#
+#     echo "SmolLM3-Stage1 + MetaMath (blora, seed=$seed, scales_lr=$scales_lr, r=2, prune_rank=True)"
+#     sbatch --gres=gpu:a100l:1 --time=48:00:00 slurm/run-experiment.sh smollm3-stage1 metamath blora seed=$seed algorithm.strategy.scales_lr=$scales_lr algorithm.strategy.r=2 algorithm.strategy.prune_rank=True
+#   done
+# done
+
+# # SmolLM3-Stage1 + MetaMath + Phase One
+# echo "SmolLM3-Stage1 + MetaMath (phase-one)"
+# sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh smollm3-stage1 metamath phase-one seed=1
+
+# SmolLM3-Stage1 + MetaMath + Phase Two
+for lr in "${LR_PHASE_TWO[@]}"; do
+  for grads in "${GRADS_IN_MEMORY[@]}"; do
+    echo "SmolLM3-Stage1 + MetaMath (phase-two, lr=$lr, grads_in_memory=$grads)"
+    sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh smollm3-stage1 metamath phase-two seed=1 algorithm.strategy.lr=$lr algorithm.strategy.grads_in_memory=$grads
+  done
+done
+
 # # SmolLM3-Stage1 + FLORES + Online Coding
 # for seed in "${SEEDS[@]}"; do
 #   for lr in "${LR_ONLINE_CODING[@]}"; do
@@ -99,6 +125,29 @@ MAX_EXAMPLES=(8 16 32 64 128 256 512 1024 2048 4096 8192 16384 32768)
 # # SmolLM3-Stage1 + FLORES + LM Head
 # echo "SmolLM3-Stage1 + FLORES (lm-head)"
 # sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh smollm3-stage1 flores lm-head seed=1
+
+# # SmolLM3-Stage1 + FLORES + BLoRA
+# for seed in "${SEEDS[@]}"; do
+#   for scales_lr in "${SCALES_LR[@]}"; do
+#     echo "SmolLM3-Stage1 + FLORES (blora, seed=$seed, scales_lr=$scales_lr, r=1, prune_rank=False)"
+#     sbatch --gres=gpu:a100l:1 --time=48:00:00 slurm/run-experiment.sh smollm3-stage1 flores blora seed=$seed algorithm.strategy.scales_lr=$scales_lr algorithm.strategy.r=1 algorithm.strategy.prune_rank=False
+
+#     echo "SmolLM3-Stage1 + FLORES (blora, seed=$seed, scales_lr=$scales_lr, r=2, prune_rank=True)"
+#     sbatch --gres=gpu:a100l:1 --time=48:00:00 slurm/run-experiment.sh smollm3-stage1 flores blora seed=$seed algorithm.strategy.scales_lr=$scales_lr algorithm.strategy.r=2 algorithm.strategy.prune_rank=True
+#   done
+# done
+
+# # SmolLM3-Stage1 + FLORES + Phase One
+# echo "SmolLM3-Stage1 + FLORES (phase-one)"
+# sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh smollm3-stage1 flores phase-one seed=1
+
+# SmolLM3-Stage1 + FLORES + Phase Two
+for lr in "${LR_PHASE_TWO[@]}"; do
+  for grads in "${GRADS_IN_MEMORY[@]}"; do
+    echo "SmolLM3-Stage1 + FLORES (phase-two, lr=$lr, grads_in_memory=$grads)"
+    sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh smollm3-stage1 flores phase-two seed=1 algorithm.strategy.lr=$lr algorithm.strategy.grads_in_memory=$grads
+  done
+done
 
 # # SmolLM3-Stage1 + IFEval + Online Coding
 # for seed in "${SEEDS[@]}"; do
@@ -144,9 +193,32 @@ MAX_EXAMPLES=(8 16 32 64 128 256 512 1024 2048 4096 8192 16384 32768)
 # echo "SmolLM3-Stage1 + IFEval (lm-head)"
 # sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh smollm3-stage1 ifeval lm-head seed=1
 
-# ################################################################################
-# # OLMo3-7B-Step1414k
-# ################################################################################
+# # SmolLM3-Stage1 + IFEval + BLoRA
+# for seed in "${SEEDS[@]}"; do
+#   for scales_lr in "${SCALES_LR[@]}"; do
+#     echo "SmolLM3-Stage1 + IFEval (blora, seed=$seed, scales_lr=$scales_lr, r=1, prune_rank=False)"
+#     sbatch --gres=gpu:a100l:1 --time=48:00:00 slurm/run-experiment.sh smollm3-stage1 ifeval blora seed=$seed algorithm.strategy.scales_lr=$scales_lr algorithm.strategy.r=1 algorithm.strategy.prune_rank=False
+#
+#     echo "SmolLM3-Stage1 + IFEval (blora, seed=$seed, scales_lr=$scales_lr, r=2, prune_rank=True)"
+#     sbatch --gres=gpu:a100l:1 --time=48:00:00 slurm/run-experiment.sh smollm3-stage1 ifeval blora seed=$seed algorithm.strategy.scales_lr=$scales_lr algorithm.strategy.r=2 algorithm.strategy.prune_rank=True
+#   done
+# done
+
+# # SmolLM3-Stage1 + IFEval + Phase One
+# echo "SmolLM3-Stage1 + IFEval (phase-one)"
+# sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh smollm3-stage1 ifeval phase-one seed=1
+
+# # SmolLM3-Stage1 + IFEval + Phase Two
+# for lr in "${LR_PHASE_TWO[@]}"; do
+#   for grads in "${GRADS_IN_MEMORY[@]}"; do
+#     echo "SmolLM3-Stage1 + IFEval (phase-two, lr=$lr, grads_in_memory=$grads)"
+#     sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh smollm3-stage1 ifeval phase-two seed=1 algorithm.strategy.lr=$lr algorithm.strategy.grads_in_memory=$grads
+#   done
+# done
+
+################################################################################
+# OLMo3-7B-Step1414k
+################################################################################
 
 # # OLMo3-7B-Step1414k + MetaMath + Online Coding
 # for seed in "${SEEDS[@]}"; do
@@ -192,6 +264,29 @@ MAX_EXAMPLES=(8 16 32 64 128 256 512 1024 2048 4096 8192 16384 32768)
 # echo "OLMo3-7B-Step1414k + MetaMath (lm-head)"
 # sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh olmo3-7b-step1414k metamath lm-head seed=1
 
+# # OLMo3-7B-Step1414k + MetaMath + BLoRA
+# for seed in "${SEEDS[@]}"; do
+#   for scales_lr in "${SCALES_LR[@]}"; do
+#     echo "OLMo3-7B-Step1414k + MetaMath (blora, seed=$seed, scales_lr=$scales_lr, r=1, prune_rank=False)"
+#     sbatch --gres=gpu:a100l:1 --time=48:00:00 slurm/run-experiment.sh olmo3-7b-step1414k metamath blora seed=$seed algorithm.strategy.scales_lr=$scales_lr algorithm.strategy.r=1 algorithm.strategy.prune_rank=False
+
+#     echo "OLMo3-7B-Step1414k + MetaMath (blora, seed=$seed, scales_lr=$scales_lr, r=2, prune_rank=True)"
+#     sbatch --gres=gpu:a100l:1 --time=48:00:00 slurm/run-experiment.sh olmo3-7b-step1414k metamath blora seed=$seed algorithm.strategy.scales_lr=$scales_lr algorithm.strategy.r=2 algorithm.strategy.prune_rank=True
+#   done
+# done
+
+# # OLMo3-7B-Step1414k + MetaMath + Phase One
+# echo "OLMo3-7B-Step1414k + MetaMath (phase-one)"
+# sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh olmo3-7b-step1414k metamath phase-one seed=1
+
+# OLMo3-7B-Step1414k + MetaMath + Phase Two
+for lr in "${LR_PHASE_TWO[@]}"; do
+  for grads in "${GRADS_IN_MEMORY[@]}"; do
+    echo "OLMo3-7B-Step1414k + MetaMath (phase-two, lr=$lr, grads_in_memory=$grads)"
+    sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh olmo3-7b-step1414k metamath phase-two seed=1 algorithm.strategy.lr=$lr algorithm.strategy.grads_in_memory=$grads
+  done
+done
+
 # # OLMo3-7B-Step1414k + FLORES + Online Coding
 # for seed in "${SEEDS[@]}"; do
 #   for lr in "${LR_ONLINE_CODING[@]}"; do
@@ -235,6 +330,29 @@ MAX_EXAMPLES=(8 16 32 64 128 256 512 1024 2048 4096 8192 16384 32768)
 # # OLMo3-7B-Step1414k + FLORES + LM Head
 # echo "OLMo3-7B-Step1414k + FLORES (lm-head)"
 # sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh olmo3-7b-step1414k flores lm-head seed=1
+
+# # OLMo3-7B-Step1414k + FLORES + BLoRA
+# for seed in "${SEEDS[@]}"; do
+#   for scales_lr in "${SCALES_LR[@]}"; do
+#     echo "OLMo3-7B-Step1414k + FLORES (blora, seed=$seed, scales_lr=$scales_lr, r=1, prune_rank=False)"
+#     sbatch --gres=gpu:a100l:1 --time=48:00:00 slurm/run-experiment.sh olmo3-7b-step1414k flores blora seed=$seed algorithm.strategy.scales_lr=$scales_lr algorithm.strategy.r=1 algorithm.strategy.prune_rank=False
+
+#     echo "OLMo3-7B-Step1414k + FLORES (blora, seed=$seed, scales_lr=$scales_lr, r=2, prune_rank=True)"
+#     sbatch --gres=gpu:a100l:1 --time=48:00:00 slurm/run-experiment.sh olmo3-7b-step1414k flores blora seed=$seed algorithm.strategy.scales_lr=$scales_lr algorithm.strategy.r=2 algorithm.strategy.prune_rank=True
+#   done
+# done
+
+# # OLMo3-7B-Step1414k + FLORES + Phase One
+# echo "OLMo3-7B-Step1414k + FLORES (phase-one)"
+# sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh olmo3-7b-step1414k flores phase-one seed=1
+
+# OLMo3-7B-Step1414k + FLORES + Phase Two
+for lr in "${LR_PHASE_TWO[@]}"; do
+  for grads in "${GRADS_IN_MEMORY[@]}"; do
+    echo "OLMo3-7B-Step1414k + FLORES (phase-two, lr=$lr, grads_in_memory=$grads)"
+    sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh olmo3-7b-step1414k flores phase-two seed=1 algorithm.strategy.lr=$lr algorithm.strategy.grads_in_memory=$grads
+  done
+done
 
 # # OLMo3-7B-Step1414k + IFEval + Online Coding
 # for seed in "${SEEDS[@]}"; do
@@ -280,24 +398,47 @@ MAX_EXAMPLES=(8 16 32 64 128 256 512 1024 2048 4096 8192 16384 32768)
 # echo "OLMo3-7B-Step1414k + IFEval (lm-head)"
 # sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh olmo3-7b-step1414k ifeval lm-head seed=1
 
+# # OLMo3-7B-Step1414k + IFEval + BLoRA
+# for seed in "${SEEDS[@]}"; do
+#   for scales_lr in "${SCALES_LR[@]}"; do
+#     echo "OLMo3-7B-Step1414k + IFEval (blora, seed=$seed, scales_lr=$scales_lr, r=1, prune_rank=False)"
+#     sbatch --gres=gpu:a100l:1 --time=48:00:00 slurm/run-experiment.sh olmo3-7b-step1414k ifeval blora seed=$seed algorithm.strategy.scales_lr=$scales_lr algorithm.strategy.r=1 algorithm.strategy.prune_rank=False
+#
+#     echo "OLMo3-7B-Step1414k + IFEval (blora, seed=$seed, scales_lr=$scales_lr, r=2, prune_rank=True)"
+#     sbatch --gres=gpu:a100l:1 --time=48:00:00 slurm/run-experiment.sh olmo3-7b-step1414k ifeval blora seed=$seed algorithm.strategy.scales_lr=$scales_lr algorithm.strategy.r=2 algorithm.strategy.prune_rank=True
+#   done
+# done
+
+# # OLMo3-7B-Step1414k + IFEval + Phase One
+# echo "OLMo3-7B-Step1414k + IFEval (phase-one)"
+# sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh olmo3-7b-step1414k ifeval phase-one seed=1
+
+# # OLMo3-7B-Step1414k + IFEval + Phase Two
+# for lr in "${LR_PHASE_TWO[@]}"; do
+#   for grads in "${GRADS_IN_MEMORY[@]}"; do
+#     echo "OLMo3-7B-Step1414k + IFEval (phase-two, lr=$lr, grads_in_memory=$grads)"
+#     sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh olmo3-7b-step1414k ifeval phase-two seed=1 algorithm.strategy.lr=$lr algorithm.strategy.grads_in_memory=$grads
+#   done
+# done
+
 ################################################################################
 # OLMo3-32B-Step656k
 ################################################################################
 
-# OLMo3-32B-Step656k + MetaMath + Online Coding (QLoRA)
-for seed in "${SEEDS[@]}"; do
-  for lr in "${LR_ONLINE_CODING[@]}"; do
-    for max_ex in "${MAX_EXAMPLES[@]}"; do
-      echo "OLMo3-32B-Step656k + MetaMath (online-coding, seed=$seed, lr=$lr, max_examples=$max_ex)"
-      sbatch --gres=gpu:a100l:1 --time=24:00:00 slurm/run-experiment.sh olmo3-32b-step656k metamath online-coding seed=$seed algorithm.strategy.lr=$lr algorithm.max_examples=$max_ex algorithm.strategy.ft_strategy=qlora algorithm.batch_size=2 trainer.accumulate_grad_batches=4
-    done
-  done
-done
+# # OLMo3-32B-Step656k + MetaMath + Online Coding (QLoRA)
+# for seed in "${SEEDS[@]}"; do
+#   for lr in "${LR_ONLINE_CODING[@]}"; do
+#     for max_ex in "${MAX_EXAMPLES[@]}"; do
+#       echo "OLMo3-32B-Step656k + MetaMath (online-coding, seed=$seed, lr=$lr, max_examples=$max_ex)"
+#       sbatch --gres=gpu:a100l:1 --time=24:00:00 slurm/run-experiment.sh olmo3-32b-step656k metamath online-coding seed=$seed algorithm.strategy.lr=$lr algorithm.max_examples=$max_ex algorithm.strategy.ft_strategy=qlora algorithm.batch_size=2 trainer.accumulate_grad_batches=4
+#     done
+#   done
+# done
 
 # # OLMo3-32B-Step656k + MetaMath + ICL
 # for seed in "${SEEDS[@]}"; do
 #   echo "OLMo3-32B-Step656k + MetaMath (icl, seed=$seed)"
-#   sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh olmo3-32b-step656k metamath icl algorithm.batch_size=1 seed=$seed
+#   sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh olmo3-32b-step656k metamath icl algorithm.batch_size=1 seed=$seed algorithm.max_length=512
 # done
 
 # # OLMo3-32B-Step656k + MetaMath + LoRA (QLoRA)
@@ -320,20 +461,43 @@ done
 # echo "OLMo3-32B-Step656k + MetaMath (lm-head)"
 # sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh olmo3-32b-step656k metamath lm-head seed=1
 
-# OLMo3-32B-Step656k + FLORES + Online Coding (QLoRA)
-for seed in "${SEEDS[@]}"; do
-  for lr in "${LR_ONLINE_CODING[@]}"; do
-    for max_ex in "${MAX_EXAMPLES[@]}"; do
-      echo "OLMo3-32B-Step656k + FLORES (online-coding, seed=$seed, lr=$lr, max_examples=$max_ex)"
-      sbatch --gres=gpu:a100l:1 --time=24:00:00 slurm/run-experiment.sh olmo3-32b-step656k flores online-coding seed=$seed algorithm.strategy.lr=$lr algorithm.max_examples=$max_ex algorithm.strategy.ft_strategy=qlora algorithm.batch_size=2 trainer.accumulate_grad_batches=4
-    done
+# # OLMo3-32B-Step656k + MetaMath + BLoRA (QLoRA)
+# for seed in "${SEEDS[@]}"; do
+#   for scales_lr in "${SCALES_LR[@]}"; do
+#     echo "OLMo3-32B-Step656k + MetaMath (blora, seed=$seed, scales_lr=$scales_lr, r=1, prune_rank=False)"
+#     sbatch --gres=gpu:a100l:1 --time=48:00:00 slurm/run-experiment.sh olmo3-32b-step656k metamath blora seed=$seed algorithm.strategy.scales_lr=$scales_lr algorithm.strategy.r=1 algorithm.strategy.prune_rank=False algorithm.strategy.ft_strategy=qlora algorithm.batch_size=2 trainer.accumulate_grad_batches=4
+
+#     echo "OLMo3-32B-Step656k + MetaMath (blora, seed=$seed, scales_lr=$scales_lr, r=2, prune_rank=True)"
+#     sbatch --gres=gpu:a100l:1 --time=48:00:00 slurm/run-experiment.sh olmo3-32b-step656k metamath blora seed=$seed algorithm.strategy.scales_lr=$scales_lr algorithm.strategy.r=2 algorithm.strategy.prune_rank=True algorithm.strategy.ft_strategy=qlora algorithm.batch_size=2 trainer.accumulate_grad_batches=4
+#   done
+# done
+
+# # OLMo3-32B-Step656k + MetaMath + Phase One
+# echo "OLMo3-32B-Step656k + MetaMath (phase-one)"
+# sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh olmo3-32b-step656k metamath phase-one seed=1
+
+# OLMo3-32B-Step656k + MetaMath + Phase Two
+for lr in "${LR_PHASE_TWO[@]}"; do
+  for grads in "${GRADS_IN_MEMORY[@]}"; do
+    echo "OLMo3-32B-Step656k + MetaMath (phase-two, lr=$lr, grads_in_memory=$grads)"
+    sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh olmo3-32b-step656k metamath phase-two seed=1 algorithm.strategy.lr=$lr algorithm.strategy.grads_in_memory=$grads
   done
 done
+
+# # OLMo3-32B-Step656k + FLORES + Online Coding (QLoRA)
+# for seed in "${SEEDS[@]}"; do
+#   for lr in "${LR_ONLINE_CODING[@]}"; do
+#     for max_ex in "${MAX_EXAMPLES[@]}"; do
+#       echo "OLMo3-32B-Step656k + FLORES (online-coding, seed=$seed, lr=$lr, max_examples=$max_ex)"
+#       sbatch --gres=gpu:a100l:1 --time=24:00:00 slurm/run-experiment.sh olmo3-32b-step656k flores online-coding seed=$seed algorithm.strategy.lr=$lr algorithm.max_examples=$max_ex algorithm.strategy.ft_strategy=qlora algorithm.batch_size=2 trainer.accumulate_grad_batches=4
+#     done
+#   done
+# done
 
 # # OLMo3-32B-Step656k + FLORES + ICL
 # for seed in "${SEEDS[@]}"; do
 #   echo "OLMo3-32B-Step656k + FLORES (icl, seed=$seed)"
-#   sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh olmo3-32b-step656k flores icl algorithm.batch_size=1 seed=$seed
+#   sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh olmo3-32b-step656k flores icl algorithm.batch_size=1 seed=$seed algorithm.max_length=512
 # done
 
 # # OLMo3-32B-Step656k + FLORES + LoRA (QLoRA)
@@ -356,15 +520,36 @@ done
 # echo "OLMo3-32B-Step656k + FLORES (lm-head)"
 # sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh olmo3-32b-step656k flores lm-head seed=1
 
-# OLMo3-32B-Step656k + IFEval + Online Coding (QLoRA)
-for seed in "${SEEDS[@]}"; do
-  for lr in "${LR_ONLINE_CODING[@]}"; do
-    for max_ex in "${MAX_EXAMPLES[@]}"; do
-      echo "OLMo3-32B-Step656k + IFEval (online-coding, seed=$seed, lr=$lr, max_examples=$max_ex)"
-      sbatch --gres=gpu:a100l:1 --time=24:00:00 slurm/run-experiment.sh olmo3-32b-step656k ifeval online-coding seed=$seed algorithm.strategy.lr=$lr algorithm.max_examples=$max_ex algorithm.strategy.ft_strategy=qlora algorithm.batch_size=2 trainer.accumulate_grad_batches=4
-    done
+# # OLMo3-32B-Step656k + FLORES + BLoRA (QLoRA)
+# for seed in "${SEEDS[@]}"; do
+#   for scales_lr in "${SCALES_LR[@]}"; do
+#     echo "OLMo3-32B-Step656k + FLORES (blora, seed=$seed, scales_lr=$scales_lr, r=1, prune_rank=False)"
+#     sbatch --gres=gpu:a100l:1 --time=48:00:00 slurm/run-experiment.sh olmo3-32b-step656k flores blora seed=$seed algorithm.strategy.scales_lr=$scales_lr algorithm.strategy.r=1 algorithm.strategy.prune_rank=False algorithm.strategy.ft_strategy=qlora algorithm.batch_size=2 trainer.accumulate_grad_batches=4
+
+#     echo "OLMo3-32B-Step656k + FLORES (blora, seed=$seed, scales_lr=$scales_lr, r=2, prune_rank=True)"
+#     sbatch --gres=gpu:a100l:1 --time=48:00:00 slurm/run-experiment.sh olmo3-32b-step656k flores blora seed=$seed algorithm.strategy.scales_lr=$scales_lr algorithm.strategy.r=2 algorithm.strategy.prune_rank=True algorithm.strategy.ft_strategy=qlora algorithm.batch_size=2 trainer.accumulate_grad_batches=4
+#   done
+# done
+
+# # OLMo3-32B-Step656k + FLORES + Phase One
+# echo "OLMo3-32B-Step656k + FLORES (phase-one)"
+# sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh olmo3-32b-step656k flores phase-one seed=1
+
+# OLMo3-32B-Step656k + FLORES + Phase Two
+for lr in "${LR_PHASE_TWO[@]}"; do
+  for grads in "${GRADS_IN_MEMORY[@]}"; do
+    echo "OLMo3-32B-Step656k + FLORES (phase-two, lr=$lr, grads_in_memory=$grads)"
+    sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh olmo3-32b-step656k flores phase-two seed=1 algorithm.strategy.lr=$lr algorithm.strategy.grads_in_memory=$grads
   done
 done
+
+# OLMo3-32B-Step656k + IFEval + Online Coding (QLoRA) - PARTIAL
+# for seed in "${SEEDS[@]}"; do
+#   for max_ex in "${MAX_EXAMPLES[@]}"; do
+#     echo "OLMo3-32B-Step656k + IFEval (online-coding, seed=$seed, lr=1e-5, max_examples=$max_ex)"
+#     sbatch --gres=gpu:a100l:1 --time=24:00:00 slurm/run-experiment.sh olmo3-32b-step656k ifeval online-coding seed=$seed algorithm.strategy.lr=1e-5 algorithm.max_examples=$max_ex algorithm.strategy.ft_strategy=qlora algorithm.batch_size=2 trainer.accumulate_grad_batches=4
+#   done
+# done
 
 # # OLMo3-32B-Step656k + IFEval + ICL
 # for seed in "${SEEDS[@]}"; do
@@ -391,6 +576,29 @@ done
 # # OLMo3-32B-Step656k + IFEval + LM Head
 # echo "OLMo3-32B-Step656k + IFEval (lm-head)"
 # sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh olmo3-32b-step656k ifeval lm-head seed=1
+
+# # OLMo3-32B-Step656k + IFEval + BLoRA (QLoRA)
+# for seed in "${SEEDS[@]}"; do
+#   for scales_lr in "${SCALES_LR[@]}"; do
+#     echo "OLMo3-32B-Step656k + IFEval (blora, seed=$seed, scales_lr=$scales_lr, r=1, prune_rank=False)"
+#     sbatch --gres=gpu:a100l:1 --time=48:00:00 slurm/run-experiment.sh olmo3-32b-step656k ifeval blora seed=$seed algorithm.strategy.scales_lr=$scales_lr algorithm.strategy.r=1 algorithm.strategy.prune_rank=False algorithm.strategy.ft_strategy=qlora algorithm.batch_size=2 trainer.accumulate_grad_batches=4
+#
+#     echo "OLMo3-32B-Step656k + IFEval (blora, seed=$seed, scales_lr=$scales_lr, r=2, prune_rank=True)"
+#     sbatch --gres=gpu:a100l:1 --time=48:00:00 slurm/run-experiment.sh olmo3-32b-step656k ifeval blora seed=$seed algorithm.strategy.scales_lr=$scales_lr algorithm.strategy.r=2 algorithm.strategy.prune_rank=True algorithm.strategy.ft_strategy=qlora algorithm.batch_size=2 trainer.accumulate_grad_batches=4
+#   done
+# done
+
+# # OLMo3-32B-Step656k + IFEval + Phase One
+# echo "OLMo3-32B-Step656k + IFEval (phase-one)"
+# sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh olmo3-32b-step656k ifeval phase-one seed=1
+
+# # OLMo3-32B-Step656k + IFEval + Phase Two
+# for lr in "${LR_PHASE_TWO[@]}"; do
+#   for grads in "${GRADS_IN_MEMORY[@]}"; do
+#     echo "OLMo3-32B-Step656k + IFEval (phase-two, lr=$lr, grads_in_memory=$grads)"
+#     sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh olmo3-32b-step656k ifeval phase-two seed=1 algorithm.strategy.lr=$lr algorithm.strategy.grads_in_memory=$grads
+#   done
+# done
 
 echo ""
 echo "All jobs submitted!"
