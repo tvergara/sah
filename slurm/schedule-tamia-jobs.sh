@@ -5,7 +5,7 @@
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=192G
 #SBATCH --time=12:00:00
-#SBATCH -o ~/scratch/slurm-logs/parallel-%j.out
+#SBATCH -o /project/aip-sreddy/tvergara/slurm-logs/parallel-%j.out
 #SBATCH --account=aip-sreddy
 
 
@@ -28,7 +28,7 @@ echo "Start time: $(date)"
 echo ""
 
 source ~/.bashrc
-cd ~/sah
+cd $SCRATCH/sah
 
 # Load required modules for tamia cluster
 module load gcc
