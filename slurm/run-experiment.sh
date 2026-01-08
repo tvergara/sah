@@ -14,6 +14,8 @@ cd ~/sah
 
 . .venv/bin/activate
 
+export WANDB_MODE=offline
+
 MODEL=${1:-smollm3-stage1}
 DATASET=${2:-metamath}
 STRATEGY=${3:-icl}
