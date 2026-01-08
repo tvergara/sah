@@ -81,7 +81,7 @@ export CUDA_VISIBLE_DEVICES=0,1,2,3
 TIMEOUT=41400
 
 # Run jobs with GNU Parallel with timeout
-# Each job needs environment setup, so we wrap in bash -c with proper sourcing
+# Each job uses run-single-job.sh wrapper for proper environment setup
 # --timeout: Kill jobs after timeout (in seconds)
 # --joblog: Append to same log file (enables true resume)
 # --resume: Skip already completed jobs
@@ -95,7 +95,8 @@ timeout $TIMEOUT parallel \
   --resume-failed \
   --progress \
   --line-buffer \
-  'CUDA_VISIBLE_DEVICES=$((({%} - 1))) bash -c "cd ~/sah && source .venv/bin/activate && {}"' \
+  --will-cite \
+  'CUDA_VISIBLE_DEVICES=$((({%} - 1))) bash slurm/run-single-job.sh {}' \
   :::: $JOB_LIST
 
 PARALLEL_EXIT=$?
