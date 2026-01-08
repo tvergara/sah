@@ -13,9 +13,14 @@
 # Automatically chains to next 12hr window if jobs remain
 # Usage: sbatch slurm/schedule-tamia-jobs.sh
 
+# Chain tracking to prevent infinite loops
+CHAIN_COUNT=${CHAIN_COUNT:-0}
+MAX_CHAINS=10
+
 echo "========================================="
 echo "Parallel Job Scheduler (12hr window)"
 echo "========================================="
+echo "Chain: $((CHAIN_COUNT + 1))/$MAX_CHAINS"
 echo "Node: $(hostname)"
 echo "Job ID: $SLURM_JOB_ID"
 echo "GPUs: $CUDA_VISIBLE_DEVICES"
@@ -119,12 +124,29 @@ fi
 
 # Check if we need to chain another job
 if [ $REMAINING -gt 0 ]; then
-  echo "Jobs remaining! Submitting next 12hr batch..."
-  NEXT_JOB=$(sbatch slurm/schedule-tamia-jobs.sh)
-  echo "Chained job: $NEXT_JOB"
-  echo ""
-  echo "This is job chaining - jobs will continue until all are complete."
-  echo "You can monitor progress in: $LOG_FILE"
+  # Check if we've reached the maximum chain limit
+  if [ $CHAIN_COUNT -ge $MAX_CHAINS ]; then
+    echo "========================================="
+    echo "WARNING: Maximum chain limit reached!"
+    echo "========================================="
+    echo "Completed $CHAIN_COUNT chains ($(($CHAIN_COUNT * 12)) hours total)"
+    echo "Stopping to prevent infinite loop."
+    echo ""
+    echo "Remaining jobs: $REMAINING"
+    echo "To continue, manually run:"
+    echo "  sbatch slurm/schedule-tamia-jobs.sh"
+    echo ""
+    echo "Or to reset the chain counter and continue:"
+    echo "  CHAIN_COUNT=0 sbatch slurm/schedule-tamia-jobs.sh"
+  else
+    echo "Jobs remaining! Submitting next 12hr batch..."
+    NEXT_CHAIN=$((CHAIN_COUNT + 1))
+    NEXT_JOB=$(sbatch --export=ALL,CHAIN_COUNT=$NEXT_CHAIN slurm/schedule-tamia-jobs.sh)
+    echo "Chained job: $NEXT_JOB (Chain $((NEXT_CHAIN + 1))/$MAX_CHAINS)"
+    echo ""
+    echo "This is job chaining - jobs will continue until all are complete."
+    echo "You can monitor progress in: $LOG_FILE"
+  fi
 else
   echo "All jobs complete! 🎉"
   echo ""
