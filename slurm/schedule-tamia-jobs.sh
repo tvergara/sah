@@ -37,6 +37,9 @@ module load python/3.12.4
 module load cuda/12.6
 module load httpproxy/1.0
 
+# Disable hydra-auto-schema to prevent YAML file corruption
+export HYDRA_AUTO_SCHEMA=0
+
 # Activate virtual environment
 . .venv/bin/activate
 
