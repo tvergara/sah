@@ -6,6 +6,8 @@
 #SBATCH --mem=192G
 #SBATCH --time=12:00:00
 #SBATCH -o ~/scratch/slurm-logs/parallel-%j.out
+#SBATCH --account=aip-sreddy
+
 
 # Schedule jobs in parallel across 4 H100 GPUs using GNU Parallel
 # Automatically chains to next 12hr window if jobs remain
@@ -22,6 +24,15 @@ echo ""
 
 source ~/.bashrc
 cd ~/sah
+
+# Load required modules for tamia cluster
+module load gcc
+module load arrow
+module load python/3.12.4
+module load cuda/12.6
+module load httpproxy/1.0
+
+# Activate virtual environment
 . .venv/bin/activate
 
 # Job list and log paths
