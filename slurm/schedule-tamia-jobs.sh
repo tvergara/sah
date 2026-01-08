@@ -25,7 +25,7 @@ cd ~/sah
 . .venv/bin/activate
 
 # Job list and log paths
-JOB_LIST="slurm/jobs.txt"
+JOB_LIST="jobs.txt"
 LOG_FILE="slurm/parallel.log"
 
 # Generate job list if it doesn't exist
