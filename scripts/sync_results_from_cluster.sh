@@ -2,8 +2,8 @@
 
 if [ $# -lt 2 ]; then
     echo "Usage: $0 <source_cluster> <dest_cluster> [results_path]"
-    echo "Example: $0 mila@cluster1.example.com mila@cluster2.example.com"
-    echo "         $0 mila@cluster1.example.com mila@cluster2.example.com scratch/hydra-runs/finetune-with-strategy/final-results.jsonl"
+    echo "Example: $0 vulcan mila"
+    echo "         $0 vulcan mila scratch/hydra-runs/finetune-with-strategy/final-results.jsonl"
     exit 1
 fi
 
@@ -11,7 +11,7 @@ SOURCE_CLUSTER=$1
 DEST_CLUSTER=$2
 RESULTS_PATH=${3:-scratch/hydra-runs/finetune-with-strategy/final-results.jsonl}
 
-SOURCE_CLUSTER_NAME=$(echo $SOURCE_CLUSTER | sed 's/.*@//;s/\..*//;s/:.*$//')
+SOURCE_CLUSTER_NAME=$SOURCE_CLUSTER
 
 DEST_FILE="final-results-${SOURCE_CLUSTER_NAME}.jsonl"
 DEST_DIR=$(dirname $RESULTS_PATH)
@@ -20,9 +20,7 @@ echo "Syncing results from ${SOURCE_CLUSTER}:${RESULTS_PATH}"
 echo "To ${DEST_CLUSTER}:${DEST_DIR}/${DEST_FILE}"
 echo ""
 
-rsync -avz --progress \
-    ${SOURCE_CLUSTER}:${RESULTS_PATH} \
-    ${DEST_CLUSTER}:${DEST_DIR}/${DEST_FILE}
+scp -3 ${SOURCE_CLUSTER}:${RESULTS_PATH} ${DEST_CLUSTER}:${DEST_DIR}/${DEST_FILE}
 
 if [ $? -ne 0 ]; then
     echo "Error syncing results file"
@@ -37,9 +35,7 @@ echo "Syncing generations from ${SOURCE_CLUSTER}:${GENERATIONS_DIR}"
 echo "To ${DEST_CLUSTER}:${DEST_GENERATIONS_DIR}"
 echo ""
 
-rsync -avz --progress \
-    ${SOURCE_CLUSTER}:${GENERATIONS_DIR}/ \
-    ${DEST_CLUSTER}:${DEST_GENERATIONS_DIR}/
+scp -3 -r ${SOURCE_CLUSTER}:${GENERATIONS_DIR} ${DEST_CLUSTER}:${DEST_GENERATIONS_DIR}
 
 if [ $? -ne 0 ]; then
     echo "Error syncing generations directory"
