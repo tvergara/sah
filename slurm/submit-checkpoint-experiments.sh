@@ -60,13 +60,14 @@ MAX_EXAMPLES=(1024 2048 4096 8192 16384 32768)
 # sbatch --gres=gpu:1 slurm/run-experiment.sh smollm3 flores baseline seed=1
 
 # SmolLM3 + IFEval + Online Coding
-for seed in "${SEEDS[@]}"; do
-  for lr in "${LR_ONLINE_CODING[@]}"; do
-    for max_ex in "${MAX_EXAMPLES[@]}"; do
-      echo "SmolLM3 + IFEval (online-coding, seed=$seed, lr=$lr, max_examples=$max_ex)"
-      sbatch --gres=gpu:1 slurm/run-experiment.sh smollm3 ifeval online-coding seed=$seed algorithm.strategy.lr=$lr algorithm.max_examples=$max_ex
-    done
-  done
+for max_ex in "${MAX_EXAMPLES[@]}"; do
+  echo "SmolLM3 + IFEval (online-coding, seed=1, lr=1e-4, max_examples=$max_ex)"
+  sbatch --gres=gpu:1 slurm/run-experiment.sh smollm3 ifeval online-coding seed=1 algorithm.strategy.lr=1e-4 algorithm.max_examples=$max_ex
+done
+
+for max_ex in "${MAX_EXAMPLES[@]}"; do
+  echo "SmolLM3 + IFEval (online-coding, seed=1, lr=1e-5, max_examples=$max_ex)"
+  sbatch --gres=gpu:1 slurm/run-experiment.sh smollm3 ifeval online-coding seed=1 algorithm.strategy.lr=1e-5 algorithm.max_examples=$max_ex
 done
 
 # # SmolLM3 + IFEval + ICL
@@ -136,13 +137,14 @@ done
 # sbatch --gres=gpu:1 slurm/run-experiment.sh smollm3-step40k flores baseline seed=1
 
 # SmolLM3-Step40k + IFEval + Online Coding
-for seed in "${SEEDS[@]}"; do
-  for lr in "${LR_ONLINE_CODING[@]}"; do
-    for max_ex in "${MAX_EXAMPLES[@]}"; do
-      echo "SmolLM3-Step40k + IFEval (online-coding, seed=$seed, lr=$lr, max_examples=$max_ex)"
-      sbatch --gres=gpu:1 slurm/run-experiment.sh smollm3-step40k ifeval online-coding seed=$seed algorithm.strategy.lr=$lr algorithm.max_examples=$max_ex
-    done
-  done
+for max_ex in "${MAX_EXAMPLES[@]}"; do
+  echo "SmolLM3-Step40k + IFEval (online-coding, seed=1, lr=1e-4, max_examples=$max_ex)"
+  sbatch --gres=gpu:1 slurm/run-experiment.sh smollm3-step40k ifeval online-coding seed=1 algorithm.strategy.lr=1e-4 algorithm.max_examples=$max_ex
+done
+
+for max_ex in "${MAX_EXAMPLES[@]}"; do
+  echo "SmolLM3-Step40k + IFEval (online-coding, seed=1, lr=1e-5, max_examples=$max_ex)"
+  sbatch --gres=gpu:1 slurm/run-experiment.sh smollm3-step40k ifeval online-coding seed=1 algorithm.strategy.lr=1e-5 algorithm.max_examples=$max_ex
 done
 
 # # SmolLM3-Step40k + IFEval + ICL
@@ -212,13 +214,14 @@ done
 # sbatch --gres=gpu:1 slurm/run-experiment.sh smollm3-step1720k flores baseline seed=1
 
 # SmolLM3-Step1720k + IFEval + Online Coding
-for seed in "${SEEDS[@]}"; do
-  for lr in "${LR_ONLINE_CODING[@]}"; do
-    for max_ex in "${MAX_EXAMPLES[@]}"; do
-      echo "SmolLM3-Step1720k + IFEval (online-coding, seed=$seed, lr=$lr, max_examples=$max_ex)"
-      sbatch --gres=gpu:1 slurm/run-experiment.sh smollm3-step1720k ifeval online-coding seed=$seed algorithm.strategy.lr=$lr algorithm.max_examples=$max_ex
-    done
-  done
+for max_ex in "${MAX_EXAMPLES[@]}"; do
+  echo "SmolLM3-Step1720k + IFEval (online-coding, seed=1, lr=1e-4, max_examples=$max_ex)"
+  sbatch --gres=gpu:1 slurm/run-experiment.sh smollm3-step1720k ifeval online-coding seed=1 algorithm.strategy.lr=1e-4 algorithm.max_examples=$max_ex
+done
+
+for max_ex in "${MAX_EXAMPLES[@]}"; do
+  echo "SmolLM3-Step1720k + IFEval (online-coding, seed=1, lr=1e-5, max_examples=$max_ex)"
+  sbatch --gres=gpu:1 slurm/run-experiment.sh smollm3-step1720k ifeval online-coding seed=1 algorithm.strategy.lr=1e-5 algorithm.max_examples=$max_ex
 done
 
 # # SmolLM3-Step1720k + IFEval + ICL
@@ -288,13 +291,14 @@ done
 # sbatch --gres=gpu:1 slurm/run-experiment.sh smollm3-stage2 flores baseline seed=1
 
 # SmolLM3-Stage2 + IFEval + Online Coding
-for seed in "${SEEDS[@]}"; do
-  for lr in "${LR_ONLINE_CODING[@]}"; do
-    for max_ex in "${MAX_EXAMPLES[@]}"; do
-      echo "SmolLM3-Stage2 + IFEval (online-coding, seed=$seed, lr=$lr, max_examples=$max_ex)"
-      sbatch --gres=gpu:1 slurm/run-experiment.sh smollm3-stage2 ifeval online-coding seed=$seed algorithm.strategy.lr=$lr algorithm.max_examples=$max_ex
-    done
-  done
+for max_ex in "${MAX_EXAMPLES[@]}"; do
+  echo "SmolLM3-Stage2 + IFEval (online-coding, seed=1, lr=1e-4, max_examples=$max_ex)"
+  sbatch --gres=gpu:1 slurm/run-experiment.sh smollm3-stage2 ifeval online-coding seed=1 algorithm.strategy.lr=1e-4 algorithm.max_examples=$max_ex
+done
+
+for max_ex in "${MAX_EXAMPLES[@]}"; do
+  echo "SmolLM3-Stage2 + IFEval (online-coding, seed=1, lr=1e-5, max_examples=$max_ex)"
+  sbatch --gres=gpu:1 slurm/run-experiment.sh smollm3-stage2 ifeval online-coding seed=1 algorithm.strategy.lr=1e-5 algorithm.max_examples=$max_ex
 done
 
 # # SmolLM3-Stage2 + IFEval + ICL
@@ -364,13 +368,14 @@ done
 # sbatch --gres=gpu:1 slurm/run-experiment.sh smollm3-stage3 flores baseline seed=1
 
 # SmolLM3-Stage3 + IFEval + Online Coding
-for seed in "${SEEDS[@]}"; do
-  for lr in "${LR_ONLINE_CODING[@]}"; do
-    for max_ex in "${MAX_EXAMPLES[@]}"; do
-      echo "SmolLM3-Stage3 + IFEval (online-coding, seed=$seed, lr=$lr, max_examples=$max_ex)"
-      sbatch --gres=gpu:1 slurm/run-experiment.sh smollm3-stage3 ifeval online-coding seed=$seed algorithm.strategy.lr=$lr algorithm.max_examples=$max_ex
-    done
-  done
+for max_ex in "${MAX_EXAMPLES[@]}"; do
+  echo "SmolLM3-Stage3 + IFEval (online-coding, seed=1, lr=1e-4, max_examples=$max_ex)"
+  sbatch --gres=gpu:1 slurm/run-experiment.sh smollm3-stage3 ifeval online-coding seed=1 algorithm.strategy.lr=1e-4 algorithm.max_examples=$max_ex
+done
+
+for max_ex in "${MAX_EXAMPLES[@]}"; do
+  echo "SmolLM3-Stage3 + IFEval (online-coding, seed=1, lr=1e-5, max_examples=$max_ex)"
+  sbatch --gres=gpu:1 slurm/run-experiment.sh smollm3-stage3 ifeval online-coding seed=1 algorithm.strategy.lr=1e-5 algorithm.max_examples=$max_ex
 done
 
 # # SmolLM3-Stage3 + IFEval + ICL
@@ -440,20 +445,19 @@ done
 # sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-step0 flores baseline seed=1
 
 # OLMo3-7B-Step0 + IFEval + Online Coding
-for seed in "${SEEDS[@]}"; do
-  for lr in "${LR_ONLINE_CODING[@]}"; do
-    for max_ex in "${MAX_EXAMPLES[@]}"; do
-      echo "OLMo3-7B-Step0 + IFEval (online-coding, seed=$seed, lr=$lr, max_examples=$max_ex)"
-      sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-step0 ifeval online-coding seed=$seed algorithm.strategy.lr=$lr algorithm.max_examples=$max_ex
-    done
-  done
+for max_ex in "${MAX_EXAMPLES[@]}"; do
+  echo "OLMo3-7B-Step0 + IFEval (online-coding, seed=1, lr=1e-4, max_examples=$max_ex)"
+  sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-step0 ifeval online-coding seed=1 algorithm.strategy.lr=1e-4 algorithm.max_examples=$max_ex
 done
 
-# # OLMo3-7B-Step0 + IFEval + ICL
-# for seed in "${SEEDS[@]}"; do
-#   echo "OLMo3-7B-Step0 + IFEval (icl, seed=$seed)"
-#   sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-step0 ifeval icl algorithm.batch_size=1 seed=$seed
-# done
+for max_ex in "${MAX_EXAMPLES[@]}"; do
+  echo "OLMo3-7B-Step0 + IFEval (online-coding, seed=1, lr=1e-5, max_examples=$max_ex)"
+  sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-step0 ifeval online-coding seed=1 algorithm.strategy.lr=1e-5 algorithm.max_examples=$max_ex
+done
+
+# OLMo3-7B-Step0 + IFEval + ICL
+echo "OLMo3-7B-Step0 + IFEval (icl, seed=1)"
+sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-step0 ifeval icl algorithm.batch_size=1 seed=1
 
 # # OLMo3-7B-Step0 + IFEval + URIAL
 # echo "OLMo3-7B-Step0 + IFEval (urial)"
@@ -516,13 +520,14 @@ done
 # sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-step707k flores baseline seed=1
 
 # OLMo3-7B-Step707k + IFEval + Online Coding
-for seed in "${SEEDS[@]}"; do
-  for lr in "${LR_ONLINE_CODING[@]}"; do
-    for max_ex in "${MAX_EXAMPLES[@]}"; do
-      echo "OLMo3-7B-Step707k + IFEval (online-coding, seed=$seed, lr=$lr, max_examples=$max_ex)"
-      sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-step707k ifeval online-coding seed=$seed algorithm.strategy.lr=$lr algorithm.max_examples=$max_ex
-    done
-  done
+for max_ex in "${MAX_EXAMPLES[@]}"; do
+  echo "OLMo3-7B-Step707k + IFEval (online-coding, seed=1, lr=1e-4, max_examples=$max_ex)"
+  sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-step707k ifeval online-coding seed=1 algorithm.strategy.lr=1e-4 algorithm.max_examples=$max_ex
+done
+
+for max_ex in "${MAX_EXAMPLES[@]}"; do
+  echo "OLMo3-7B-Step707k + IFEval (online-coding, seed=1, lr=1e-5, max_examples=$max_ex)"
+  sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-step707k ifeval online-coding seed=1 algorithm.strategy.lr=1e-5 algorithm.max_examples=$max_ex
 done
 
 # # OLMo3-7B-Step707k + IFEval + ICL
@@ -592,20 +597,19 @@ done
 # sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-stage2-step6k flores baseline seed=1
 
 # OLMo3-7B-Stage2-Step6k + IFEval + Online Coding
-for seed in "${SEEDS[@]}"; do
-  for lr in "${LR_ONLINE_CODING[@]}"; do
-    for max_ex in "${MAX_EXAMPLES[@]}"; do
-      echo "OLMo3-7B-Stage2-Step6k + IFEval (online-coding, seed=$seed, lr=$lr, max_examples=$max_ex)"
-      sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-stage2-step6k ifeval online-coding seed=$seed algorithm.strategy.lr=$lr algorithm.max_examples=$max_ex
-    done
-  done
+for max_ex in "${MAX_EXAMPLES[@]}"; do
+  echo "OLMo3-7B-Stage2-Step6k + IFEval (online-coding, seed=1, lr=1e-4, max_examples=$max_ex)"
+  sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-stage2-step6k ifeval online-coding seed=1 algorithm.strategy.lr=1e-4 algorithm.max_examples=$max_ex
 done
 
-# # OLMo3-7B-Stage2-Step6k + IFEval + ICL
-# for seed in "${SEEDS[@]}"; do
-#   echo "OLMo3-7B-Stage2-Step6k + IFEval (icl, seed=$seed)"
-#   sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-stage2-step6k ifeval icl algorithm.batch_size=1 seed=$seed
-# done
+for max_ex in "${MAX_EXAMPLES[@]}"; do
+  echo "OLMo3-7B-Stage2-Step6k + IFEval (online-coding, seed=1, lr=1e-5, max_examples=$max_ex)"
+  sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-stage2-step6k ifeval online-coding seed=1 algorithm.strategy.lr=1e-5 algorithm.max_examples=$max_ex
+done
+
+# OLMo3-7B-Stage2-Step6k + IFEval + ICL
+echo "OLMo3-7B-Stage2-Step6k + IFEval (icl, seed=1)"
+sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-stage2-step6k ifeval icl algorithm.batch_size=1 seed=1
 
 # # OLMo3-7B-Stage2-Step6k + IFEval + URIAL
 # echo "OLMo3-7B-Stage2-Step6k + IFEval (urial)"
@@ -668,13 +672,14 @@ done
 # sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-stage2-step12k flores baseline seed=1
 
 # OLMo3-7B-Stage2-Step12k + IFEval + Online Coding
-for seed in "${SEEDS[@]}"; do
-  for lr in "${LR_ONLINE_CODING[@]}"; do
-    for max_ex in "${MAX_EXAMPLES[@]}"; do
-      echo "OLMo3-7B-Stage2-Step12k + IFEval (online-coding, seed=$seed, lr=$lr, max_examples=$max_ex)"
-      sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-stage2-step12k ifeval online-coding seed=$seed algorithm.strategy.lr=$lr algorithm.max_examples=$max_ex
-    done
-  done
+for max_ex in "${MAX_EXAMPLES[@]}"; do
+  echo "OLMo3-7B-Stage2-Step12k + IFEval (online-coding, seed=1, lr=1e-4, max_examples=$max_ex)"
+  sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-stage2-step12k ifeval online-coding seed=1 algorithm.strategy.lr=1e-4 algorithm.max_examples=$max_ex
+done
+
+for max_ex in "${MAX_EXAMPLES[@]}"; do
+  echo "OLMo3-7B-Stage2-Step12k + IFEval (online-coding, seed=1, lr=1e-5, max_examples=$max_ex)"
+  sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-stage2-step12k ifeval online-coding seed=1 algorithm.strategy.lr=1e-5 algorithm.max_examples=$max_ex
 done
 
 # # OLMo3-7B-Stage2-Step12k + IFEval + ICL
@@ -744,20 +749,19 @@ done
 # sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-stage2-step24k flores baseline seed=1
 
 # OLMo3-7B-Stage2-Step24k + IFEval + Online Coding
-for seed in "${SEEDS[@]}"; do
-  for lr in "${LR_ONLINE_CODING[@]}"; do
-    for max_ex in "${MAX_EXAMPLES[@]}"; do
-      echo "OLMo3-7B-Stage2-Step24k + IFEval (online-coding, seed=$seed, lr=$lr, max_examples=$max_ex)"
-      sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-stage2-step24k ifeval online-coding seed=$seed algorithm.strategy.lr=$lr algorithm.max_examples=$max_ex
-    done
-  done
+for max_ex in "${MAX_EXAMPLES[@]}"; do
+  echo "OLMo3-7B-Stage2-Step24k + IFEval (online-coding, seed=1, lr=1e-4, max_examples=$max_ex)"
+  sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-stage2-step24k ifeval online-coding seed=1 algorithm.strategy.lr=1e-4 algorithm.max_examples=$max_ex
 done
 
-# # OLMo3-7B-Stage2-Step24k + IFEval + ICL
-# for seed in "${SEEDS[@]}"; do
-#   echo "OLMo3-7B-Stage2-Step24k + IFEval (icl, seed=$seed)"
-#   sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-stage2-step24k ifeval icl algorithm.batch_size=1 seed=$seed
-# done
+for max_ex in "${MAX_EXAMPLES[@]}"; do
+  echo "OLMo3-7B-Stage2-Step24k + IFEval (online-coding, seed=1, lr=1e-5, max_examples=$max_ex)"
+  sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-stage2-step24k ifeval online-coding seed=1 algorithm.strategy.lr=1e-5 algorithm.max_examples=$max_ex
+done
+
+# OLMo3-7B-Stage2-Step24k + IFEval + ICL
+echo "OLMo3-7B-Stage2-Step24k + IFEval (icl, seed=1)"
+sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-stage2-step24k ifeval icl algorithm.batch_size=1 seed=1
 
 # # OLMo3-7B-Stage2-Step24k + IFEval + URIAL
 # echo "OLMo3-7B-Stage2-Step24k + IFEval (urial)"
@@ -820,13 +824,14 @@ done
 # sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-stage2-step48k flores baseline seed=1
 
 # OLMo3-7B-Stage2-Step48k + IFEval + Online Coding
-for seed in "${SEEDS[@]}"; do
-  for lr in "${LR_ONLINE_CODING[@]}"; do
-    for max_ex in "${MAX_EXAMPLES[@]}"; do
-      echo "OLMo3-7B-Stage2-Step48k + IFEval (online-coding, seed=$seed, lr=$lr, max_examples=$max_ex)"
-      sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-stage2-step48k ifeval online-coding seed=$seed algorithm.strategy.lr=$lr algorithm.max_examples=$max_ex
-    done
-  done
+for max_ex in "${MAX_EXAMPLES[@]}"; do
+  echo "OLMo3-7B-Stage2-Step48k + IFEval (online-coding, seed=1, lr=1e-4, max_examples=$max_ex)"
+  sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-stage2-step48k ifeval online-coding seed=1 algorithm.strategy.lr=1e-4 algorithm.max_examples=$max_ex
+done
+
+for max_ex in "${MAX_EXAMPLES[@]}"; do
+  echo "OLMo3-7B-Stage2-Step48k + IFEval (online-coding, seed=1, lr=1e-5, max_examples=$max_ex)"
+  sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-stage2-step48k ifeval online-coding seed=1 algorithm.strategy.lr=1e-5 algorithm.max_examples=$max_ex
 done
 
 # # OLMo3-7B-Stage2-Step48k + IFEval + ICL
@@ -896,13 +901,14 @@ done
 # sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-instruct-step200 flores baseline seed=1
 
 # OLMo3-7B-Instruct-Step200 + IFEval + Online Coding
-for seed in "${SEEDS[@]}"; do
-  for lr in "${LR_ONLINE_CODING[@]}"; do
-    for max_ex in "${MAX_EXAMPLES[@]}"; do
-      echo "OLMo3-7B-Instruct-Step200 + IFEval (online-coding, seed=$seed, lr=$lr, max_examples=$max_ex)"
-      sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-instruct-step200 ifeval online-coding seed=$seed algorithm.strategy.lr=$lr algorithm.max_examples=$max_ex
-    done
-  done
+for max_ex in "${MAX_EXAMPLES[@]}"; do
+  echo "OLMo3-7B-Instruct-Step200 + IFEval (online-coding, seed=1, lr=1e-4, max_examples=$max_ex)"
+  sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-instruct-step200 ifeval online-coding seed=1 algorithm.strategy.lr=1e-4 algorithm.max_examples=$max_ex
+done
+
+for max_ex in "${MAX_EXAMPLES[@]}"; do
+  echo "OLMo3-7B-Instruct-Step200 + IFEval (online-coding, seed=1, lr=1e-5, max_examples=$max_ex)"
+  sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-instruct-step200 ifeval online-coding seed=1 algorithm.strategy.lr=1e-5 algorithm.max_examples=$max_ex
 done
 
 # # OLMo3-7B-Instruct-Step200 + IFEval + ICL
@@ -972,13 +978,14 @@ done
 # sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-instruct-step400 flores baseline seed=1
 
 # OLMo3-7B-Instruct-Step400 + IFEval + Online Coding
-for seed in "${SEEDS[@]}"; do
-  for lr in "${LR_ONLINE_CODING[@]}"; do
-    for max_ex in "${MAX_EXAMPLES[@]}"; do
-      echo "OLMo3-7B-Instruct-Step400 + IFEval (online-coding, seed=$seed, lr=$lr, max_examples=$max_ex)"
-      sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-instruct-step400 ifeval online-coding seed=$seed algorithm.strategy.lr=$lr algorithm.max_examples=$max_ex
-    done
-  done
+for max_ex in "${MAX_EXAMPLES[@]}"; do
+  echo "OLMo3-7B-Instruct-Step400 + IFEval (online-coding, seed=1, lr=1e-4, max_examples=$max_ex)"
+  sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-instruct-step400 ifeval online-coding seed=1 algorithm.strategy.lr=1e-4 algorithm.max_examples=$max_ex
+done
+
+for max_ex in "${MAX_EXAMPLES[@]}"; do
+  echo "OLMo3-7B-Instruct-Step400 + IFEval (online-coding, seed=1, lr=1e-5, max_examples=$max_ex)"
+  sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-instruct-step400 ifeval online-coding seed=1 algorithm.strategy.lr=1e-5 algorithm.max_examples=$max_ex
 done
 
 # # OLMo3-7B-Instruct-Step400 + IFEval + ICL
@@ -1047,15 +1054,15 @@ done
 # echo "OLMo3-7B-Instruct-Final + FLORES (baseline)"
 # sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-instruct-final flores baseline seed=1
 
-# OLMo3-7B-Instruct-Final + IFEval + Online Coding
-for seed in "${SEEDS[@]}"; do
-  for lr in "${LR_ONLINE_CODING[@]}"; do
-    for max_ex in "${MAX_EXAMPLES[@]}"; do
-      echo "OLMo3-7B-Instruct-Final + IFEval (online-coding, seed=$seed, lr=$lr, max_examples=$max_ex)"
-      sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-instruct-final ifeval online-coding seed=$seed algorithm.strategy.lr=$lr algorithm.max_examples=$max_ex
-    done
-  done
-done
+# # OLMo3-7B-Instruct-Final + IFEval + Online Coding
+# for seed in "${SEEDS[@]}"; do
+#   for lr in "${LR_ONLINE_CODING[@]}"; do
+#     for max_ex in "${MAX_EXAMPLES[@]}"; do
+#       echo "OLMo3-7B-Instruct-Final + IFEval (online-coding, seed=$seed, lr=$lr, max_examples=$max_ex)"
+#       sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-7b-instruct-final ifeval online-coding seed=$seed algorithm.strategy.lr=$lr algorithm.max_examples=$max_ex
+#     done
+#   done
+# done
 
 # # OLMo3-7B-Instruct-Final + IFEval + ICL
 # for seed in "${SEEDS[@]}"; do
@@ -1084,6 +1091,12 @@ done
 #     done
 #   done
 # done
+
+# OLMo3-1025-7B + MetaMath + Online Coding (PARTIAL - one job missing)
+for max_ex in "${MAX_EXAMPLES[@]}"; do
+  echo "OLMo3-1025-7B + MetaMath (online-coding, seed=1, lr=1e-4, max_examples=$max_ex)"
+  sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-1025-7b metamath online-coding seed=1 algorithm.strategy.lr=1e-4 algorithm.max_examples=$max_ex
+done
 
 # # OLMo3-1025-7B + MetaMath + ICL
 # for seed in "${SEEDS[@]}"; do
@@ -1124,20 +1137,19 @@ done
 # sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-1025-7b flores baseline seed=1
 
 # OLMo3-1025-7B + IFEval + Online Coding
-for seed in "${SEEDS[@]}"; do
-  for lr in "${LR_ONLINE_CODING[@]}"; do
-    for max_ex in "${MAX_EXAMPLES[@]}"; do
-      echo "OLMo3-1025-7B + IFEval (online-coding, seed=$seed, lr=$lr, max_examples=$max_ex)"
-      sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-1025-7b ifeval online-coding seed=$seed algorithm.strategy.lr=$lr algorithm.max_examples=$max_ex
-    done
-  done
+for max_ex in "${MAX_EXAMPLES[@]}"; do
+  echo "OLMo3-1025-7B + IFEval (online-coding, seed=1, lr=1e-4, max_examples=$max_ex)"
+  sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-1025-7b ifeval online-coding seed=1 algorithm.strategy.lr=1e-4 algorithm.max_examples=$max_ex
 done
 
-# # OLMo3-1025-7B + IFEval + ICL
-# for seed in "${SEEDS[@]}"; do
-#   echo "OLMo3-1025-7B + IFEval (icl, seed=$seed)"
-#   sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-1025-7b ifeval icl algorithm.batch_size=1 seed=$seed
-# done
+for max_ex in "${MAX_EXAMPLES[@]}"; do
+  echo "OLMo3-1025-7B + IFEval (online-coding, seed=1, lr=1e-5, max_examples=$max_ex)"
+  sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-1025-7b ifeval online-coding seed=1 algorithm.strategy.lr=1e-5 algorithm.max_examples=$max_ex
+done
+
+# OLMo3-1025-7B + IFEval + ICL
+echo "OLMo3-1025-7B + IFEval (icl, seed=1)"
+sbatch --gres=gpu:1 slurm/run-experiment.sh olmo3-1025-7b ifeval icl algorithm.batch_size=1 seed=1
 
 # # OLMo3-1025-7B + IFEval + URIAL
 # echo "OLMo3-1025-7B + IFEval (urial)"
