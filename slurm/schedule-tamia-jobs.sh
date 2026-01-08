@@ -86,14 +86,12 @@ TIMEOUT=41400
 # --joblog: Append to same log file (enables true resume)
 # --resume: Skip already completed jobs
 # --resume-failed: Retry failed jobs
-# --progress: Show progress
 
 timeout $TIMEOUT parallel \
   --jobs 4 \
   --joblog $LOG_FILE \
   --resume \
   --resume-failed \
-  --progress \
   --line-buffer \
   --will-cite \
   'CUDA_VISIBLE_DEVICES=$((({%} - 1))) bash slurm/run-single-job.sh {}' \
