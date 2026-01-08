@@ -8,7 +8,6 @@ trainer:
   enable_checkpointing: false
   callbacks:
     model_checkpoint: null
-    gpu_memory_tracker: null
     early_stopping: null
   val_check_interval: 1
 
