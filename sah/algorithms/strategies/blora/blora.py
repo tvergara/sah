@@ -250,8 +250,8 @@ class BLoRAStrategy(BaseStrategy):
         return loss + gate_loss
 
     def compute_bits(self, pl_module):
-
         total_bits = 0
+        bits_per_layer = {}
         for name, module in pl_module.named_modules():
             if isinstance(module, LoraSVDQuantLinear):
                 if module.prune_rank:
@@ -276,8 +276,9 @@ class BLoRAStrategy(BaseStrategy):
                 bits_A = module.out_features * r_eff * bw_A
                 bits_B = module.in_features * r_eff * bw_B
                 bits_E = r_eff * bw_E
+                layer_bits = bits_A + bits_B + bits_E
 
-                total_bits += bits_A + bits_B + bits_E
+                total_bits += layer_bits
 
             elif isinstance(module, LoraQuantLinear):
                 r = module.r
@@ -286,8 +287,12 @@ class BLoRAStrategy(BaseStrategy):
 
                 bits_A = module.out_features * r * bw_A
                 bits_B = module.in_features * r * bw_B
+                layer_bits = bits_A + bits_B
 
-                total_bits += bits_A + bits_B
+                total_bits += layer_bits
+            bits_per_layer[name] = layer_bits
+        bits_per_layer = {f"bits/{k}": v for k, v in bits_per_layer.items()}
+        pl_module.log_dict(bits_per_layer, prog_bar=False)
 
         return total_bits
 
