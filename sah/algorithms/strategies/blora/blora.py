@@ -1,4 +1,10 @@
+import json
+import os
+import uuid
+from pathlib import Path
+
 import torch
+import torch.distributed as dist
 from transformers.pytorch_utils import ALL_LAYERNORM_LAYERS
 from transformers.trainer import get_parameter_names
 
@@ -157,9 +163,47 @@ class BLoRAStrategy(BaseStrategy):
                 pass
 
     def on_validation_epoch_end(self, pl_module):
-        self.bits = self.compute_bits(pl_module)
+        self.bits, bits_per_layer = self.compute_bits(pl_module)
+        pl_module.log("val/bits", self.bits, prog_bar=True)
 
-        return super().on_validation_epoch_end(pl_module)
+        if dist.is_initialized() and dist.get_rank() != 0:
+            return
+
+        performance = pl_module.trainer.logged_metrics.get("val/performance", None)
+
+        if performance is not None:
+            experiment_id = pl_module.trainer.logger.experiment.id
+            eval_run_id = str(uuid.uuid4())
+            experiment_name = pl_module.experiment_name
+            result_file = pl_module.result_file
+            dataset_name = pl_module.dataset_name
+            model_name = pl_module.model_name
+
+            result = {
+                "experiment_name": experiment_name,
+                "experiment_id": experiment_id,
+                "eval_run_id": eval_run_id,
+                "dataset_name": dataset_name,
+                "model_name": model_name,
+                "performance": (
+                    performance.item() if hasattr(performance, "item") else performance
+                ),
+                "bits": self.bits,
+                "seed": pl_module.hparams.seed,
+                "strategy_hparams": vars(pl_module.hparams.strategy),
+            }
+
+            bits_path = Path(os.environ.get("SCRATCH", "./outputs")) / "blora_bits"
+            bits_path.mkdir(parents=True, exist_ok=True)
+            bits_file = bits_path / f"{experiment_id}_{eval_run_id}_bits_per_layer.json"
+            with open(bits_file, "w") as bf:
+                json.dump(bits_per_layer, bf, indent=4)
+
+            with open(result_file, "a") as f:
+                f.write(json.dumps(result, default=str) + "\n")
+
+            if hasattr(self.dataset_handler, "save_generations"):
+                self.dataset_handler.save_generations(eval_run_id)
 
     def validation_step(self, pl_module, batch, batch_idx):
         return super().validation_step(pl_module, batch, batch_idx)
@@ -291,10 +335,8 @@ class BLoRAStrategy(BaseStrategy):
 
                 total_bits += layer_bits
             bits_per_layer[name] = layer_bits
-        bits_per_layer = {f"bits/{k}": v for k, v in bits_per_layer.items()}
-        pl_module.log_dict(bits_per_layer, prog_bar=False)
 
-        return total_bits
+        return total_bits, bits_per_layer
 
 
 def calculate_gate_loss(model):
