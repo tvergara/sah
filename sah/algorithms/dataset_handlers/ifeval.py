@@ -149,6 +149,8 @@ class IFEvalHandler(BaseDatasetHandler):
 
             if "<im_start>" in decoded:
                 decoded = decoded[:decoded.index("<im_start>")]
+            elif '\ufffd' in decoded:
+                decoded = decoded[:decoded.index('\ufffd')]
 
             self.generations.append({
                 "prompt": raw_prompt,

@@ -29,16 +29,17 @@ def merge_results(source_file, dest_file):
 
     print(f"\nTotal entries before deduplication: {len(all_results)}")
 
-    seen = set()
+    seen_eval_ids = set()
     unique_results = []
     for result in all_results:
-        result_str = json.dumps(result, sort_keys=True)
-        if result_str not in seen:
-            seen.add(result_str)
+        eval_run_id = result.get('eval_run_id')
+        if eval_run_id not in seen_eval_ids:
+            seen_eval_ids.add(eval_run_id)
             unique_results.append(result)
 
     print(f"Total unique entries after deduplication: {len(unique_results)}")
     print(f"Removed {len(all_results) - len(unique_results)} duplicates")
+    print("(Deduplication based on eval_run_id, keeping main file version on collision)")
 
     backup_path = dest_path.with_suffix('.jsonl.bak')
     if dest_path.exists():

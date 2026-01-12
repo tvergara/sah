@@ -85,7 +85,9 @@ def evaluate_ifeval_runs(csv_path: str, generations_dir: str, google_research_di
     print("\nStarting evaluation...")
     print("=" * 80)
 
-    df = pd.read_json(csv_path, lines=True)
+    # df = pd.read_json(csv_path, lines=True)
+
+    updates = {}
 
     for idx, row in ifeval_no_perf.iterrows():
         eval_run_id = row['eval_run_id']
@@ -99,10 +101,17 @@ def evaluate_ifeval_runs(csv_path: str, generations_dir: str, google_research_di
         performance = run_evaluation(eval_run_id, generations_dir, google_research_dir)
 
         print(f"  Performance: {performance:.4f}")
-        df.loc[idx, 'performance'] = performance
+        updates[eval_run_id] = performance
 
-    df.to_json(csv_path, orient='records', lines=True)
-    print(f"\n✓ Updated {len(ifeval_no_perf)} rows in {csv_path}")
+    print("\nRe-reading file to merge with any new entries...")
+    df_final = pd.read_json(csv_path, lines=True)
+
+    for eval_run_id, performance in updates.items():
+        mask = df_final['eval_run_id'] == eval_run_id
+        df_final.loc[mask, 'performance'] = performance
+
+    df_final.to_json(csv_path, orient='records', lines=True)
+    print(f"\n✓ Updated {len(updates)} rows in {csv_path}")
 
 
 def main():

@@ -2,9 +2,9 @@ import json
 from pathlib import Path
 
 input_dir = Path("/network/scratch/b/brownet")
-output_file = input_dir / "correct_ifeval_examples_extended_32.jsonl"
+output_file = input_dir / "correct_ifeval_examples_extended_32_clean.jsonl"
 
-num_splits = 150
+num_splits = 50
 
 all_examples = []
 
@@ -22,11 +22,22 @@ for split_idx in range(num_splits):
 
     print(f"  Loaded {len(all_examples)} examples so far")
 
-print(f"\nTotal examples: {len(all_examples)}")
+print(f"\nTotal examples before deduplication: {len(all_examples)}")
 
-print(f"Writing to {output_file}...")
+seen = set()
+unique_examples = []
+for example in all_examples:
+    example_str = json.dumps(example, sort_keys=True)
+    if example_str not in seen:
+        seen.add(example_str)
+        unique_examples.append(example)
+
+print(f"Total unique examples after deduplication: {len(unique_examples)}")
+print(f"Removed {len(all_examples) - len(unique_examples)} duplicates")
+
+print(f"\nWriting to {output_file}...")
 with open(output_file, 'w') as f:
-    for example in all_examples:
+    for example in unique_examples:
         f.write(json.dumps(example) + '\n')
 
-print(f"Done! Aggregated {len(all_examples)} examples into {output_file}")
+print(f"Done! Aggregated {len(unique_examples)} unique examples into {output_file}")
