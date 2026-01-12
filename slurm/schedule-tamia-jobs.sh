@@ -5,24 +5,32 @@
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=192G
 #SBATCH --time=12:00:00
-#SBATCH -o /project/aip-sreddy/tvergara/slurm-logs/parallel-%j.out
+#SBATCH -o /project/aip-sreddy/tvergara/slurm-logs/parallel-%A_%a.out
 #SBATCH --account=aip-sreddy
 
 
 # Schedule jobs in parallel across 4 H100 GPUs using GNU Parallel
-# Automatically chains to next 12hr window if jobs remain
-# Usage: sbatch slurm/schedule-tamia-jobs.sh
-
-# Chain tracking to prevent infinite loops
-CHAIN_COUNT=${CHAIN_COUNT:-0}
-MAX_CHAINS=10
+# Supports parallelization via SLURM job arrays
+#
+# Usage:
+#   Single job (process all jobs.txt):
+#     sbatch slurm/schedule-tamia-jobs.sh
+#
+#   Parallel jobs (each processes a subset):
+#     sbatch --array=0-9 slurm/schedule-tamia-jobs.sh
+#     This splits jobs.txt into 10 chunks, one per array task
+#
+# The script always assumes jobs.txt exists
 
 echo "========================================="
 echo "Parallel Job Scheduler (12hr window)"
 echo "========================================="
-echo "Chain: $((CHAIN_COUNT + 1))/$MAX_CHAINS"
 echo "Node: $(hostname)"
 echo "Job ID: $SLURM_JOB_ID"
+if [ -n "$SLURM_ARRAY_TASK_ID" ]; then
+  echo "Array Job ID: ${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}"
+  echo "Array Task ID: $SLURM_ARRAY_TASK_ID"
+fi
 echo "GPUs: $CUDA_VISIBLE_DEVICES"
 echo "Start time: $(date)"
 echo ""
@@ -45,16 +53,41 @@ export HYDRA_AUTO_SCHEMA=0
 
 # Job list and log paths
 JOB_LIST="jobs.txt"
-LOG_FILE="slurm/parallel.log"
 
-# Generate job list if it doesn't exist
 if [ ! -f $JOB_LIST ]; then
-  echo "Generating job list..."
-  bash slurm/generate-job-list.sh
+  echo "ERROR: $JOB_LIST not found!"
+  exit 1
 fi
 
 TOTAL_JOBS=$(wc -l < $JOB_LIST)
-echo "Total jobs in queue: $TOTAL_JOBS"
+
+# Determine which subset of jobs to process
+if [ -n "$SLURM_ARRAY_TASK_ID" ] && [ -n "$SLURM_ARRAY_TASK_COUNT" ]; then
+  JOBS_PER_TASK=$(( (TOTAL_JOBS + SLURM_ARRAY_TASK_COUNT - 1) / SLURM_ARRAY_TASK_COUNT ))
+  START_LINE=$(( SLURM_ARRAY_TASK_ID * JOBS_PER_TASK + 1 ))
+  END_LINE=$(( START_LINE + JOBS_PER_TASK - 1 ))
+
+  if [ $END_LINE -gt $TOTAL_JOBS ]; then
+    END_LINE=$TOTAL_JOBS
+  fi
+
+  if [ $START_LINE -gt $TOTAL_JOBS ]; then
+    echo "Array task $SLURM_ARRAY_TASK_ID has no jobs to process"
+    exit 0
+  fi
+
+  SUBSET_JOB_LIST="jobs_subset_${SLURM_ARRAY_TASK_ID}.txt"
+  sed -n "${START_LINE},${END_LINE}p" $JOB_LIST > $SUBSET_JOB_LIST
+  JOB_LIST=$SUBSET_JOB_LIST
+  LOG_FILE="slurm/parallel_${SLURM_ARRAY_TASK_ID}.log"
+
+  echo "Array parallelization: Task $SLURM_ARRAY_TASK_ID of $SLURM_ARRAY_TASK_COUNT"
+  echo "Processing jobs ${START_LINE}-${END_LINE} of ${TOTAL_JOBS}"
+  TOTAL_JOBS=$(wc -l < $JOB_LIST)
+else
+  LOG_FILE="slurm/parallel.log"
+  echo "Processing all jobs: $TOTAL_JOBS"
+fi
 
 # Count completed jobs from log
 if [ -f $LOG_FILE ]; then
@@ -73,7 +106,7 @@ fi
 
 echo ""
 echo "Running 4 jobs in parallel (one per GPU)"
-echo "Time limit: 12 hours (will stop at 11.5 hrs to chain)"
+echo "Time limit: 12 hours (will stop at 11.5 hrs for cleanup)"
 echo ""
 
 # Export CUDA devices so they're visible to parallel jobs
@@ -125,33 +158,17 @@ if [ -f $LOG_FILE ]; then
   echo ""
 fi
 
-# Check if we need to chain another job
 if [ $REMAINING -gt 0 ]; then
-  # Check if we've reached the maximum chain limit
-  if [ $CHAIN_COUNT -ge $MAX_CHAINS ]; then
-    echo "========================================="
-    echo "WARNING: Maximum chain limit reached!"
-    echo "========================================="
-    echo "Completed $CHAIN_COUNT chains ($(($CHAIN_COUNT * 12)) hours total)"
-    echo "Stopping to prevent infinite loop."
-    echo ""
-    echo "Remaining jobs: $REMAINING"
+  echo "Jobs remaining: $REMAINING"
+  echo ""
+  if [ -n "$SLURM_ARRAY_TASK_ID" ]; then
+    echo "To continue this subset, rerun the same array task"
+  else
     echo "To continue, manually run:"
     echo "  sbatch slurm/schedule-tamia-jobs.sh"
-    echo ""
-    echo "Or to reset the chain counter and continue:"
-    echo "  CHAIN_COUNT=0 sbatch slurm/schedule-tamia-jobs.sh"
-  else
-    echo "Jobs remaining! Submitting next 12hr batch..."
-    NEXT_CHAIN=$((CHAIN_COUNT + 1))
-    NEXT_JOB=$(sbatch --export=ALL,CHAIN_COUNT=$NEXT_CHAIN slurm/schedule-tamia-jobs.sh)
-    echo "Chained job: $NEXT_JOB (Chain $((NEXT_CHAIN + 1))/$MAX_CHAINS)"
-    echo ""
-    echo "This is job chaining - jobs will continue until all are complete."
-    echo "You can monitor progress in: $LOG_FILE"
   fi
 else
-  echo "All jobs complete! 🎉"
+  echo "All jobs complete!"
   echo ""
   echo "Final summary:"
   echo "--------------"
@@ -163,10 +180,11 @@ else
     echo ""
     echo "WARNING: Some jobs failed. Check the log:"
     echo "  $LOG_FILE"
-    echo ""
-    echo "To retry failed jobs, run:"
-    echo "  sbatch slurm/schedule-tamia-jobs.sh"
   fi
+fi
+
+if [ -n "$SLURM_ARRAY_TASK_ID" ] && [ -f "jobs_subset_${SLURM_ARRAY_TASK_ID}.txt" ]; then
+  rm "jobs_subset_${SLURM_ARRAY_TASK_ID}.txt"
 fi
 
 exit 0
