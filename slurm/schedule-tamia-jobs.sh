@@ -4,7 +4,7 @@
 #SBATCH --gpus-per-node=4
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=192G
-#SBATCH --time=12:00:00
+#SBATCH --time=24:00:00
 #SBATCH -o /project/aip-sreddy/tvergara/slurm-logs/parallel-%A_%a.out
 #SBATCH --account=aip-sreddy
 
@@ -23,7 +23,7 @@
 # The script always assumes jobs.txt exists
 
 echo "========================================="
-echo "Parallel Job Scheduler (12hr window)"
+echo "Parallel Job Scheduler (24hr window)"
 echo "========================================="
 echo "Node: $(hostname)"
 echo "Job ID: $SLURM_JOB_ID"
@@ -106,15 +106,15 @@ fi
 
 echo ""
 echo "Running 4 jobs in parallel (one per GPU)"
-echo "Time limit: 12 hours (will stop at 11.5 hrs for cleanup)"
+echo "Time limit: 24 hours (will stop at 23.5 hrs for cleanup)"
 echo ""
 
 # Export CUDA devices so they're visible to parallel jobs
 export CUDA_VISIBLE_DEVICES=0,1,2,3
 
 # Time management: stop 30 minutes before time limit to allow cleanup
-# 12 hours = 43200 seconds, stop at 11.5 hours = 41400 seconds
-TIMEOUT=41400
+# 24 hours = 86400 seconds, stop at 23.5 hours = 84600 seconds
+TIMEOUT=84600
 
 # Run jobs with GNU Parallel with timeout
 # Each job uses run-single-job.sh wrapper for proper environment setup
