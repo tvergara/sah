@@ -72,12 +72,15 @@ class ProcessedTrainDataset(Dataset):
             raw_dataset = raw_dataset.take(max_examples)
 
         process_fn = create_process_fn(tokenizer, format_fn, block_size)
-        self.dataset = raw_dataset.map(
-            process_fn,
-            remove_columns=raw_dataset.column_names,
-            num_proc=8,
-            batched=True,
-        )
+
+        map_kwargs = {
+            "remove_columns": raw_dataset.column_names,
+            "batched": True,
+        }
+        if not streaming:
+            map_kwargs["num_proc"] = 8
+
+        self.dataset = raw_dataset.map(process_fn, **map_kwargs)
 
     def __len__(self):
         return len(self.dataset)

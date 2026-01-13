@@ -85,6 +85,9 @@ class BaseStrategy:
     def on_train_batch_end(self, pl_module, outputs, batch, batch_idx):
         pass
 
+    def on_train_epoch_end(self, pl_module):
+        pass
+
     def on_train_end(self, pl_module):
         pass
 
