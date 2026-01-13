@@ -156,11 +156,8 @@ class BLoRAStrategy(BaseStrategy):
         pl_module.model = pl_module.model.to(pl_module.device)
 
         for module in pl_module.model.modules():
-            try:
-                if hasattr(module, "device"):
-                    module.device = pl_module.device
-            except:
-                pass
+            if hasattr(module, "device"):
+                module.device = pl_module.device
 
     def on_validation_epoch_end(self, pl_module):
         self.bits, bits_per_layer = self.compute_bits(pl_module)
@@ -323,6 +320,7 @@ class BLoRAStrategy(BaseStrategy):
                 layer_bits = bits_A + bits_B + bits_E
 
                 total_bits += layer_bits
+                bits_per_layer[name] = layer_bits
 
             elif isinstance(module, LoraQuantLinear):
                 r = module.r
@@ -334,7 +332,7 @@ class BLoRAStrategy(BaseStrategy):
                 layer_bits = bits_A + bits_B
 
                 total_bits += layer_bits
-            bits_per_layer[name] = layer_bits
+                bits_per_layer[name] = layer_bits
 
         return total_bits, bits_per_layer
 
