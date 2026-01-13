@@ -156,8 +156,11 @@ class BLoRAStrategy(BaseStrategy):
         pl_module.model = pl_module.model.to(pl_module.device)
 
         for module in pl_module.model.modules():
-            if hasattr(module, "device"):
-                module.device = pl_module.device
+            try:
+                if hasattr(module, "device"):
+                    module.device = pl_module.device
+            except:  # noqa: E722
+                pass
 
     def on_validation_epoch_end(self, pl_module):
         self.bits, bits_per_layer = self.compute_bits(pl_module)
