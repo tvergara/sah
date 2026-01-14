@@ -16,17 +16,19 @@
 #   Single job (process all jobs.txt):
 #     sbatch slurm/schedule-tamia-jobs.sh
 #
+#   With custom job file:
+#     JOB_FILE=missing-jobs.txt sbatch slurm/schedule-tamia-jobs.sh
+#
 #   Parallel jobs (each processes a subset):
 #     sbatch --array=0-9 slurm/schedule-tamia-jobs.sh
-#     This splits jobs.txt into 10 chunks, one per array task
-#
-# The script always assumes jobs.txt exists
+#     JOB_FILE=missing-jobs.txt sbatch --array=0-9 slurm/schedule-tamia-jobs.sh
 
 echo "========================================="
 echo "Parallel Job Scheduler (24hr window)"
 echo "========================================="
 echo "Node: $(hostname)"
 echo "Job ID: $SLURM_JOB_ID"
+echo "Job file: ${JOB_FILE:-jobs.txt}"
 if [ -n "$SLURM_ARRAY_TASK_ID" ]; then
   echo "Array Job ID: ${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}"
   echo "Array Task ID: $SLURM_ARRAY_TASK_ID"
@@ -51,8 +53,8 @@ export HYDRA_AUTO_SCHEMA=0
 # Activate virtual environment
 . .venv/bin/activate
 
-# Job list and log paths
-JOB_LIST="jobs.txt"
+# Job list and log paths (can be overridden via environment variable)
+JOB_LIST="${JOB_FILE:-jobs.txt}"
 
 if [ ! -f $JOB_LIST ]; then
   echo "ERROR: $JOB_LIST not found!"
@@ -165,7 +167,11 @@ if [ $REMAINING -gt 0 ]; then
     echo "To continue this subset, rerun the same array task"
   else
     echo "To continue, manually run:"
-    echo "  sbatch slurm/schedule-tamia-jobs.sh"
+    if [ "$JOB_LIST" != "jobs.txt" ]; then
+      echo "  JOB_FILE=$JOB_LIST sbatch slurm/schedule-tamia-jobs.sh"
+    else
+      echo "  sbatch slurm/schedule-tamia-jobs.sh"
+    fi
   fi
 else
   echo "All jobs complete!"
