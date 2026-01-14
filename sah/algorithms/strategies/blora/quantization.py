@@ -1,5 +1,6 @@
 import copy
 
+import bitsandbytes as bnb
 import numpy as np
 import torch
 import torch.nn as nn
@@ -16,8 +17,7 @@ from .straight_through import QuantizationHijacker, Quantizer
 
 
 def to_numpy(tensor):
-    """
-    Helper function that turns the given tensor into a numpy array
+    """Helper function that turns the given tensor into a numpy array.
 
     Parameters
     ----------
@@ -26,7 +26,6 @@ def to_numpy(tensor):
     Returns
     -------
     tensor : float or np.array
-
     """
     if isinstance(tensor, np.ndarray):
         return tensor
@@ -212,8 +211,10 @@ class LoraQuantizationHijacker(QuantizationHijacker):
         # )
 
     def quantize_activations(self, activations, quantizer):
-        """Quantize a single activation tensor or all activations from a layer. I'm assuming that
-        we should quantize all outputs for a layer with the same quantization scheme.
+        """Quantize a single activation tensor or all activations from a layer.
+
+        I'm assuming that we should quantize all outputs for a layer with the same quantization
+        scheme.
         """
         if self.activation_function is not None:
             activations = self.activation_function(activations)
@@ -263,6 +264,7 @@ class LoraQuantLinear(LoraQuantizationHijacker, lora_layers.Linear):
         self._wB_cached = None
         self._w_cache_step = 0
         self._w_cache_steps = 4
+        self.original_layer = None
 
     def get_lora_params(self):
         lora_A_weight, lora_B_weight = self.lora_A, self.lora_B
@@ -299,7 +301,10 @@ class LoraQuantLinear(LoraQuantizationHijacker, lora_layers.Linear):
             return w.transpose(0, 1) if self.fan_in_fan_out else w
 
         if self.r > 0 and not self.merged:
-            result = F.linear(x, T(weight), bias=bias)
+            if self.original_layer:
+                result = self.original_layer(x)
+            else:
+                result = F.linear(x, T(weight), bias=bias)
 
             result = self.quantize_activations(result, self.activation_quantizer)
 
@@ -533,18 +538,16 @@ def quantize_apply_lora_model(
     specials: dict | None = None,
     **quant_params,
 ):
-    """
-    Quantize model by substituting layers with their quantized versions.
-        nn.Conv -> QuantConv
-        nn.Linear -> QuantLinear
-        nn.LoraLinear -> LoraQuantLinear
+    """Quantize model by substituting layers with their quantized versions. nn.Conv -> QuantConv
+    nn.Linear -> QuantLinear nn.LoraLinear -> LoraQuantLinear.
 
     :param model: model.
     :param model_name: name of the model.
     :param lora_rank: r parameter in LoRa decomposition.
-    :param lora_weights: layers to apply LoRa to (any combination of keys, queries, values and attention output).
-    :param quantize_lora_layers_only:  indicates if quantization is applied to LoRa matrices only.
-    and context.
+    :param lora_weights: layers to apply LoRa to (any combination of keys, queries, values and
+        attention output).
+    :param quantize_lora_layers_only: indicates if quantization is applied to LoRa matrices only.
+        and context.
     :param specials: required for standard layers.
     :param quant_params: extra params.
     :return: quantized model.
@@ -563,7 +566,7 @@ def quantize_apply_lora_model(
         else:
             quant_model = model
 
-    elif type(model) in (nn.Conv2d, nn.Linear, lora_layers.Linear):
+    elif type(model) in (nn.Conv2d, nn.Linear, lora_layers.Linear, bnb.nn.Linear4bit):
         modtype = None
         for lora_weight in lora_weights:
             if lora_weight in model_name:
@@ -584,6 +587,10 @@ def quantize_apply_lora_model(
             quant_model = modtype(device=model.weight.device, **kwargs, **quant_params)
 
             quant_model.weight.data = model.weight.data
+
+            if type(model) is bnb.nn.Linear4bit:
+                quant_model.original_layer = model
+
             if model.bias is not None:
                 quant_model.bias.data = model.bias.data
             if modtype in (LoraQuantLinear, LoraSVDQuantLinear, QuantLinear):
