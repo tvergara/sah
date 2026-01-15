@@ -42,10 +42,26 @@ if [ $? -ne 0 ]; then
     exit 1
 fi
 
+BLORA_BITS_DIR="scratch/blora_bits"
+DEST_BLORA_BITS_DIR="scratch/blora_bits-${SOURCE_CLUSTER_NAME}"
+
+echo ""
+echo "Syncing blora bits from ${SOURCE_CLUSTER}:${BLORA_BITS_DIR}"
+echo "To ${DEST_CLUSTER}:${DEST_BLORA_BITS_DIR}"
+echo ""
+
+scp -3 -r ${SOURCE_CLUSTER}:${BLORA_BITS_DIR} ${DEST_CLUSTER}:${DEST_BLORA_BITS_DIR}
+
+if [ $? -ne 0 ]; then
+    echo "Error syncing blora bits directory"
+    exit 1
+fi
+
 echo ""
 echo "Successfully synced:"
 echo "  - Results to ${DEST_FILE}"
 echo "  - Generations to ${DEST_GENERATIONS_DIR}"
+echo "  - Blora bits to ${DEST_BLORA_BITS_DIR}"
 echo ""
 echo "Run the merge script to combine results:"
 echo "  python scripts/merge_results.py ${DEST_DIR}/${DEST_FILE} ${DEST_DIR}/final-results.jsonl"
