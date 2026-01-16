@@ -142,6 +142,8 @@ class BLoRAStrategy(BaseStrategy):
 
     def setup(self, pl_module, stage):
         super().setup(pl_module, stage)
+        if stage != "fit":
+            return
         model = get_accelerate_model(
             pl_module.model,
             quantize=self.quantize,
