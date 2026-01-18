@@ -35,3 +35,4 @@ class NetworkConfig:
     revision: str = "main"
     low_cpu_mem_usage: bool | None = None
     quantization_config: object | None = None
+    device_map: str | dict | None = None

@@ -8,6 +8,7 @@ algorithm:
   model_config:
     pretrained_model_name_or_path: allenai/Olmo-3-1125-32B
     revision: stage1-step656000
+    torch_dtype: bfloat16
     quantization_config:
       _target_: sah.algorithms.utils.quantization_configs.get_qlora_config
     low_cpu_mem_usage: true
