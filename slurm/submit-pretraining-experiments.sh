@@ -427,10 +427,10 @@ SCALES_LR=(1e-2 2e-3)
 
 # OLMo3-32B-Step656k + MetaMath + LoRA (QLoRA with DDP)
 echo "OLMo3-32B-Step656k + MetaMath (lora, seed=1, lr=0.0001)"
-sbatch --gres=gpu:h100:4 --export=ALL,NCCL_P2P_DISABLE=1 slurm/run-experiment.sh olmo3-32b-step656k metamath lora seed=1 algorithm.strategy.lr=0.0001 algorithm.strategy.ft_strategy=qlora algorithm.batch_size=2 trainer.strategy=ddp trainer.devices=4
+sbatch --gres=gpu:h100:4 --time=24:00:00 --export=ALL,NCCL_P2P_DISABLE=1 slurm/run-experiment.sh olmo3-32b-step656k metamath lora seed=1 algorithm.strategy.lr=0.0001 algorithm.strategy.ft_strategy=qlora algorithm.batch_size=2 trainer.strategy=ddp trainer.devices=4
 
 echo "OLMo3-32B-Step656k + MetaMath (lora, seed=1, lr=1e-05)"
-sbatch --gres=gpu:h100:4 --export=ALL,NCCL_P2P_DISABLE=1 slurm/run-experiment.sh olmo3-32b-step656k metamath lora seed=1 algorithm.strategy.lr=1e-05 algorithm.strategy.ft_strategy=qlora algorithm.batch_size=2 trainer.strategy=ddp trainer.devices=4
+sbatch --gres=gpu:h100:4 --time=24:00:00 --export=ALL,NCCL_P2P_DISABLE=1 slurm/run-experiment.sh olmo3-32b-step656k metamath lora seed=1 algorithm.strategy.lr=1e-05 algorithm.strategy.ft_strategy=qlora algorithm.batch_size=2 trainer.strategy=ddp trainer.devices=4
 
 # # OLMo3-32B-Step656k + MetaMath + Online Coding (QLoRA)
 # for seed in "${SEEDS[@]}"; do
