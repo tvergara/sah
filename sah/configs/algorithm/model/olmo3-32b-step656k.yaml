@@ -4,7 +4,6 @@ algorithm:
   model_name: olmo3-32b-step656k
   tokenizer_config:
     pretrained_model_name_or_path: allenai/Olmo-3-1125-32B
-    revision: stage1-step656000
   model_config:
     pretrained_model_name_or_path: allenai/Olmo-3-1125-32B
     revision: stage1-step656000
