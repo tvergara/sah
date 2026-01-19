@@ -32,9 +32,7 @@ class FinetuneWithStrategy(LightningModule):
         if self.tokenizer.pad_token_id is None:
             self.tokenizer.pad_token_id = self.tokenizer.eos_token_id
 
-        self.model = hydra_zen.instantiate(model_config)
-        self.model.config.pad_token_id = self.tokenizer.pad_token_id
-
+        self.model = None
         self.model_config = model_config
         self.model_name = model_name
         self.max_examples = max_examples
@@ -46,9 +44,19 @@ class FinetuneWithStrategy(LightningModule):
         self.generations_dir = Path(generations_dir)
         self.experiment_name = experiment_name
         self.max_length = max_length
+        self.strategy.init(self)
 
     def setup(self, stage):
+        if self.model is None:
+            self.model = hydra_zen.instantiate(self.model_config)
+            self.model.config.pad_token_id = self.tokenizer.pad_token_id
         self.strategy.setup(self, stage)
+
+    def configure_model(self):
+        if self.model is None:
+            self.model = hydra_zen.instantiate(self.model_config)
+            self.model.config.pad_token_id = self.tokenizer.pad_token_id
+        return self.strategy.configure_model(self)
 
     def training_step(self, batch, batch_idx):
         return self.strategy.training_step(self, batch, batch_idx)
