@@ -12,6 +12,12 @@ class BaseStrategy:
     def __init__(self):
         self.bits = 0
 
+    def init(self, pl_module):
+        pass
+
+    def configure_model(self, pl_module):
+        pass
+
     def setup(self, pl_module, stage):
         self.dataset_handler = get_dataset_handler(
             pl_module.dataset_name,
