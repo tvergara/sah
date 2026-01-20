@@ -497,7 +497,10 @@ class LoraSVDQuantLinear(LoraQuantizationHijacker, lora_layers.SVDLinear):
             return w.transpose(0, 1) if self.fan_in_fan_out else w
 
         if self.r > 0 and not self.merged:
-            result = F.linear(x, T(weight), bias=bias)
+            if self.original_layer:
+                result = self.original_layer(x)
+            else:
+                result = F.linear(x, T(weight), bias=bias)
 
             result = self.quantize_activations(result, self.activation_quantizer)
 
@@ -514,7 +517,10 @@ class LoraSVDQuantLinear(LoraQuantizationHijacker, lora_layers.SVDLinear):
 
             result = self.quantize_activations(result, self.out_act_quantizer)
         else:
-            result = F.linear(x, T(weight), bias=bias)
+            if self.original_layer:
+                result = self.original_layer(x)
+            else:
+                result = F.linear(x, T(weight), bias=bias)
             result = self.quantize_activations(result, self.activation_quantizer)
 
         return result
