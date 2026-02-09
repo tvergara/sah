@@ -1,7 +1,7 @@
 _target_: sah.algorithms.strategies.phase_two.PhaseTwoStrategy
 _recursive_: false
 _convert_: object
-lr: 0.001
+lr: 1e-4
 r: 8
 lora_alpha: 8
 lora_dropout: 0.0

@@ -2,7 +2,21 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-df = pd.read_json('/network/scratch/b/brownet/hydra-runs/finetune-with-strategy/results.csv', lines=True)
+df = pd.read_json('/network/scratch/b/brownet/hydra-runs/finetune-with-strategy/final-results.jsonl', lines=True)
+SCRIPT_SIZE = 3704
+df.loc[df['experiment_name'].isin(['urial', 'icl']), 'bits'] += SCRIPT_SIZE
+
+# dataset_name = 'meta-math/MetaMathQA'
+# dataset_name = 'allenai/nllb'
+dataset_name = 'ifeval:/network/scratch/b/brownet/correct_ifeval_examples_extended_32.jsonl'
+# model_name = 'olmo3-32b-step656k'
+# model_name = 'olmo3-7b-step1414k'
+model_name = 'olmo3-1025-7b'
+# model_name = 'olmo3-7b-instruct-step200'
+experiment_name = 'baseline'
+
+
+df[(df['dataset_name'] == dataset_name) & (df['model_name'] == model_name)][['bits', 'performance', 'eval_run_id', 'strategy_hparams']]
 
 # Display name mappings
 model_display_names = {
@@ -67,10 +81,11 @@ def compute_pareto_frontier(df):
 # dataset_name = 'meta-math/MetaMathQA'
 # dataset_name = 'cais/mmlu'
 # dataset_name = 'allenai/nllb'
-dataset_name = 'ifeval:/network/scratch/b/brownet/correct_ifeval_examples.jsonl'
+dataset_name = 'ifeval:/network/scratch/b/brownet/correct_ifeval_examples_extended_32_clean.jsonl'
 # dataset_name = 'GAIR/lima'
-# model_name = 'smollm3'
-model_name = 'smollm3-stage3'
+
+model_name = 'smollm3'
+# model_name = 'smollm3-stage3'
 # model_name = 'smollm3-stage1'
 # model_name = 'smollm3-stage1'
 # model_name = 'smollm'
@@ -80,6 +95,11 @@ model_name = 'smollm3-stage3'
 # model_name = 'olmo3-7b-stage2-step12k'
 # model_name = 'olmo3-7b-step707k'
 # model_name = 'olmo3-7b-step1414k'
+# model_name = 'olmo3-7b-instruct-step400'
+# model_name = 'olmo3-7b-instruct-final'
+# model_name = 'olmo3-7b-instruct-step200'
+# model_name = 'olmo3-1025-7b'
+# model_name = 'olmo3-32b-step656k'
 # model_name = 'olmo3-13b'
 # model_name = 'olmo2-1b-step30k'
 # model_name = 'HuggingFaceTB/SmolLM2-360M'
@@ -90,6 +110,7 @@ filtered_df = df[df['dataset_name'] == dataset_name]
 filtered_df = filtered_df[filtered_df['model_name'] == model_name].copy()
 
 filtered_df['bits']
+filtered_df[filtered_df['bits'] ==0]
 
 # filtered_df['bits'] = filtered_df['bits'].astype(float)
 # filtered_df
@@ -101,7 +122,7 @@ zero_bits_performance = 0
 # Filter out 0 bits points (can't display on log scale anyway)
 filtered_df = filtered_df[filtered_df['bits'] > 0].copy()
 filtered_df
-
+filtered_df[filtered_df['experiment_name'] == 'icl']
 plt.figure(figsize=(10, 6))
 
 # Get unique experiment names and assign colors

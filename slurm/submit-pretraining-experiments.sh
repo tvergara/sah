@@ -475,16 +475,16 @@ SCALES_LR=(1e-2 2e-3)
 # echo "OLMo3-32B-Step656k + MetaMath (lm-head)"
 # sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh olmo3-32b-step656k metamath lm-head seed=1
 
-# OLMo3-32B-Step656k + MetaMath + BLoRA (with DDP)
-for seed in "${SEEDS[@]}"; do
-  for scales_lr in "${SCALES_LR[@]}"; do
-    echo "OLMo3-32B-Step656k + MetaMath (blora, seed=$seed, scales_lr=$scales_lr, r=1, prune_rank=False)"
-    sbatch --gres=gpu:h100:4 --time=48:00:00 --mem=240G --export=ALL,NCCL_P2P_DISABLE=1 slurm/run-experiment.sh olmo3-32b-step656k metamath blora seed=$seed algorithm.strategy.scales_lr=$scales_lr algorithm.strategy.r=1 algorithm.strategy.prune_rank=False algorithm.batch_size=2 trainer.devices=4 trainer.strategy=ddp_find_unused_parameters_true
+# # OLMo3-32B-Step656k + MetaMath + BLoRA (with DDP)
+# for seed in "${SEEDS[@]}"; do
+#   for scales_lr in "${SCALES_LR[@]}"; do
+#     echo "OLMo3-32B-Step656k + MetaMath (blora, seed=$seed, scales_lr=$scales_lr, r=1, prune_rank=False)"
+#     sbatch --gres=gpu:h100:4 --time=48:00:00 --mem=240G --export=ALL,NCCL_P2P_DISABLE=1 slurm/run-experiment.sh olmo3-32b-step656k metamath blora seed=$seed algorithm.strategy.scales_lr=$scales_lr algorithm.strategy.r=1 algorithm.strategy.prune_rank=False algorithm.batch_size=2 trainer.devices=4 trainer.strategy=ddp_find_unused_parameters_true
 
-    echo "OLMo3-32B-Step656k + MetaMath (blora, seed=$seed, scales_lr=$scales_lr, r=2, prune_rank=True)"
-    sbatch --gres=gpu:h100:4 --time=48:00:00 --mem=240G --export=ALL,NCCL_P2P_DISABLE=1 slurm/run-experiment.sh olmo3-32b-step656k metamath blora seed=$seed algorithm.strategy.scales_lr=$scales_lr algorithm.strategy.r=2 algorithm.strategy.prune_rank=True algorithm.batch_size=2 trainer.devices=4 trainer.strategy=ddp_find_unused_parameters_true
-  done
-done
+#     echo "OLMo3-32B-Step656k + MetaMath (blora, seed=$seed, scales_lr=$scales_lr, r=2, prune_rank=True)"
+#     sbatch --gres=gpu:h100:4 --time=48:00:00 --mem=240G --export=ALL,NCCL_P2P_DISABLE=1 slurm/run-experiment.sh olmo3-32b-step656k metamath blora seed=$seed algorithm.strategy.scales_lr=$scales_lr algorithm.strategy.r=2 algorithm.strategy.prune_rank=True algorithm.batch_size=2 trainer.devices=4 trainer.strategy=ddp_find_unused_parameters_true
+#   done
+# done
 
 # # OLMo3-32B-Step656k + FLORES + Online Coding (QLoRA)
 # for seed in "${SEEDS[@]}"; do
@@ -522,16 +522,16 @@ done
 # echo "OLMo3-32B-Step656k + FLORES (lm-head)"
 # sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh olmo3-32b-step656k flores lm-head seed=1
 
-# OLMo3-32B-Step656k + FLORES + BLoRA (with DDP)
-for seed in "${SEEDS[@]}"; do
-  for scales_lr in "${SCALES_LR[@]}"; do
-    echo "OLMo3-32B-Step656k + FLORES (blora, seed=$seed, scales_lr=$scales_lr, r=1, prune_rank=False)"
-    sbatch --gres=gpu:h100:4 --time=24:00:00 --mem=240G --export=ALL,NCCL_P2P_DISABLE=1 slurm/run-experiment.sh olmo3-32b-step656k flores blora seed=$seed algorithm.strategy.scales_lr=$scales_lr algorithm.strategy.r=1 algorithm.strategy.prune_rank=False algorithm.batch_size=2 trainer.devices=4 trainer.strategy=ddp_find_unused_parameters_true
+# # OLMo3-32B-Step656k + FLORES + BLoRA (with DDP)
+# for seed in "${SEEDS[@]}"; do
+#   for scales_lr in "${SCALES_LR[@]}"; do
+#     echo "OLMo3-32B-Step656k + FLORES (blora, seed=$seed, scales_lr=$scales_lr, r=1, prune_rank=False)"
+#     sbatch --gres=gpu:h100:4 --time=24:00:00 --mem=240G --export=ALL,NCCL_P2P_DISABLE=1 slurm/run-experiment.sh olmo3-32b-step656k flores blora seed=$seed algorithm.strategy.scales_lr=$scales_lr algorithm.strategy.r=1 algorithm.strategy.prune_rank=False algorithm.batch_size=2 trainer.devices=4 trainer.strategy=ddp_find_unused_parameters_true
 
-    echo "OLMo3-32B-Step656k + FLORES (blora, seed=$seed, scales_lr=$scales_lr, r=2, prune_rank=True)"
-    sbatch --gres=gpu:h100:4 --time=24:00:00 --mem=240G --export=ALL,NCCL_P2P_DISABLE=1 slurm/run-experiment.sh olmo3-32b-step656k flores blora seed=$seed algorithm.strategy.scales_lr=$scales_lr algorithm.strategy.r=2 algorithm.strategy.prune_rank=True algorithm.batch_size=2 trainer.devices=4 trainer.strategy=ddp_find_unused_parameters_true
-  done
-done
+#     echo "OLMo3-32B-Step656k + FLORES (blora, seed=$seed, scales_lr=$scales_lr, r=2, prune_rank=True)"
+#     sbatch --gres=gpu:h100:4 --time=24:00:00 --mem=240G --export=ALL,NCCL_P2P_DISABLE=1 slurm/run-experiment.sh olmo3-32b-step656k flores blora seed=$seed algorithm.strategy.scales_lr=$scales_lr algorithm.strategy.r=2 algorithm.strategy.prune_rank=True algorithm.batch_size=2 trainer.devices=4 trainer.strategy=ddp_find_unused_parameters_true
+#   done
+# done
 
 # # OLMo3-32B-Step656k + IFEval + Online Coding (QLoRA)
 # for seed in "${SEEDS[@]}"; do
@@ -569,16 +569,16 @@ done
 # echo "OLMo3-32B-Step656k + IFEval (lm-head)"
 # sbatch --gres=gpu:a100l:1 slurm/run-experiment.sh olmo3-32b-step656k ifeval lm-head seed=1
 
-# OLMo3-32B-Step656k + IFEval + BLoRA (with DDP)
-for seed in "${SEEDS[@]}"; do
-  for scales_lr in "${SCALES_LR[@]}"; do
-    echo "OLMo3-32B-Step656k + IFEval (blora, seed=$seed, scales_lr=$scales_lr, r=1, prune_rank=False)"
-    sbatch --gres=gpu:h100:4 --time=12:00:00 --mem=240G --export=ALL,NCCL_P2P_DISABLE=1 slurm/run-experiment.sh olmo3-32b-step656k ifeval blora seed=$seed algorithm.strategy.scales_lr=$scales_lr algorithm.strategy.r=1 algorithm.strategy.prune_rank=False algorithm.batch_size=2 trainer.devices=4 trainer.strategy=ddp_find_unused_parameters_true
+# # OLMo3-32B-Step656k + IFEval + BLoRA (with DDP)
+# for seed in "${SEEDS[@]}"; do
+#   for scales_lr in "${SCALES_LR[@]}"; do
+#     echo "OLMo3-32B-Step656k + IFEval (blora, seed=$seed, scales_lr=$scales_lr, r=1, prune_rank=False)"
+#     sbatch --gres=gpu:h100:4 --time=12:00:00 --mem=240G --export=ALL,NCCL_P2P_DISABLE=1 slurm/run-experiment.sh olmo3-32b-step656k ifeval blora seed=$seed algorithm.strategy.scales_lr=$scales_lr algorithm.strategy.r=1 algorithm.strategy.prune_rank=False algorithm.batch_size=2 trainer.devices=4 trainer.strategy=ddp_find_unused_parameters_true
 
-    echo "OLMo3-32B-Step656k + IFEval (blora, seed=$seed, scales_lr=$scales_lr, r=2, prune_rank=True)"
-    sbatch --gres=gpu:h100:4 --time=12:00:00 --mem=240G --export=ALL,NCCL_P2P_DISABLE=1 slurm/run-experiment.sh olmo3-32b-step656k ifeval blora seed=$seed algorithm.strategy.scales_lr=$scales_lr algorithm.strategy.r=2 algorithm.strategy.prune_rank=True algorithm.batch_size=2 trainer.devices=4 trainer.strategy=ddp_find_unused_parameters_true
-  done
-done
+#     echo "OLMo3-32B-Step656k + IFEval (blora, seed=$seed, scales_lr=$scales_lr, r=2, prune_rank=True)"
+#     sbatch --gres=gpu:h100:4 --time=12:00:00 --mem=240G --export=ALL,NCCL_P2P_DISABLE=1 slurm/run-experiment.sh olmo3-32b-step656k ifeval blora seed=$seed algorithm.strategy.scales_lr=$scales_lr algorithm.strategy.r=2 algorithm.strategy.prune_rank=True algorithm.batch_size=2 trainer.devices=4 trainer.strategy=ddp_find_unused_parameters_true
+#   done
+# done
 
 echo ""
 echo "All jobs submitted!"

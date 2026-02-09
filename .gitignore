@@ -174,5 +174,7 @@ tests/.regression_files/**/*.gif
 data
 sah/configs/.schemas
 *.png
+*.pdf
+*.svg
 *.out
 **/.vscode/**

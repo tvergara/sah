@@ -3,12 +3,18 @@ import numpy as np
 import pandas as pd
 
 df = pd.read_json('/network/scratch/b/brownet/hydra-runs/finetune-with-strategy/final-results.jsonl', lines=True)
+SCRIPT_SIZE = 3704
+df.loc[df['experiment_name'].isin(['urial', 'icl']), 'bits'] += SCRIPT_SIZE
+
+dataset_name = 'ifeval:/network/scratch/b/brownet/correct_ifeval_examples_extended_32_clean.jsonl'
+model_name = 'smollm3-stage3'
 
 model_display_names = {
     'smollm': 'SmolLM2-1.7B',
     'smollm-step2750k': 'SmolLM2-1.7B (2750k steps)',
     'smollm-step4125k': 'SmolLM2-1.7B (4125k steps)',
     'smollm-step4875k': 'SmolLM2-1.7B (4875k steps)',
+    'smollm3-step0': 'SmolLM3 Pre-training (0 steps)',
     'smollm3-step40k': 'SmolLM3 Pre-training (40k steps)',
     'smollm3-step1720k': 'SmolLM3 Pre-training (1720k steps)',
     'smollm3-stage1': 'SmolLM3 Pre-training (3440k steps)',
@@ -18,22 +24,24 @@ model_display_names = {
     'olmo3-7b-step0': 'Olmo3 Pre-training (0 steps)',
     'olmo3-7b-step707k': 'Olmo3 Pre-training (707k steps)',
     'olmo3-7b-step1414k': 'Olmo3 Pre-training (1414k steps)',
-    'olmo3-7b-stage2-step6k': 'Olmo3 Post-training (6k steps)',
-    'olmo3-7b-stage2-step12k': 'Olmo3 Post-training (12k steps)',
-    'olmo3-7b-stage2-step24k': 'Olmo3 Post-training (24k steps)',
-    'olmo3-7b-stage2-step48k': 'Olmo3 Post-training (48k steps)',
+    'olmo3-7b-stage2-step6k': 'Olmo3 Mid-training (6k steps)',
+    'olmo3-7b-stage2-step12k': 'Olmo3 Mid-training (12k steps)',
+    'olmo3-7b-stage2-step24k': 'Olmo3 Mid-training (24k steps)',
+    'olmo3-7b-stage2-step48k': 'Olmo3 Mid-training (48k steps)',
+    'olmo3-1025-7b': 'Olmo3 Mid-training (Final)',
+    'olmo3-7b-instruct-step400': 'Olmo3 Post-training (Final)',
 }
 
 dataset_display_names = {
     'meta-math/MetaMathQA': 'GSM8K',
     'allenai/nllb': 'FLORES',
-    'ifeval:/network/scratch/b/brownet/correct_ifeval_examples.jsonl': 'IFEval',
+    'ifeval:/network/scratch/b/brownet/correct_ifeval_examples_extended_32_clean.jsonl': 'IFEval',
 }
 
 dataset_metric_names = {
     'meta-math/MetaMathQA': 'Accuracy',
     'allenai/nllb': 'BLEU',
-    'ifeval:/network/scratch/b/brownet/correct_ifeval_examples.jsonl': 'Score',
+    'ifeval:/network/scratch/b/brownet/correct_ifeval_examples_extended_32_clean.jsonl': 'Score',
 }
 
 def compute_pareto_frontier(model_df, zero_bit_perf=None):
@@ -60,16 +68,16 @@ def compute_pareto_frontier(model_df, zero_bit_perf=None):
 
 model_families = {
     'SmolLM3': {
-        'pretraining': ['smollm3-step40k', 'smollm3-step1720k', 'smollm3-stage1'],
+        'pretraining': ['smollm3-step0', 'smollm3-step1720k', 'smollm3-stage1'],
         'posttraining': ['smollm3-stage2', 'smollm3-stage3', 'smollm3']
     },
-    'Olmo3 7b': {
+    'Olmo3 7B': {
         'pretraining': ['olmo3-7b-step0', 'olmo3-7b-step707k', 'olmo3-7b-step1414k'],
-        'posttraining': ['olmo3-7b-stage2-step6k', 'olmo3-7b-stage2-step12k', 'olmo3-7b-stage2-step24k', 'olmo3-7b-stage2-step48k']
+        'posttraining': ['olmo3-7b-stage2-step6k', 'olmo3-7b-stage2-step24k', 'olmo3-1025-7b', 'olmo3-7b-instruct-step400']
     }
 }
 
-datasets = ['meta-math/MetaMathQA', 'allenai/nllb', 'ifeval:/network/scratch/b/brownet/correct_ifeval_examples.jsonl']
+datasets = ['meta-math/MetaMathQA', 'ifeval:/network/scratch/b/brownet/correct_ifeval_examples_extended_32_clean.jsonl', 'allenai/nllb']
 
 fig, axes = plt.subplots(2, 3, figsize=(24, 10))
 
@@ -119,12 +127,13 @@ for family_idx, (family_name, family_models) in enumerate(model_families.items()
                     linewidth=2,
                     label=model_display, color=model_colors[model_name])
 
-        ax.set_xlabel('Program Size (bits)', fontsize=14)
+        ax.set_xlabel('Program Length (bits)', fontsize=18)
         metric_name = dataset_metric_names.get(dataset_name, r'$\delta$')
-        ax.set_ylabel(metric_name, fontsize=14)
+        ax.set_ylabel(metric_name, fontsize=18)
         dataset_display = dataset_display_names.get(dataset_name, dataset_name)
-        ax.set_title(f'{dataset_display} - {family_name}', fontsize=16)
+        ax.set_title(f'{family_name} on {dataset_display}', fontsize=20)
         ax.set_xscale('log')
+        ax.tick_params(axis='both', labelsize=16)
         ax.grid(True, alpha=0.3)
 
         current_xlim = ax.get_xlim()
@@ -159,7 +168,7 @@ for family_idx, (family_name, family_models) in enumerate(model_families.items()
             all_legends[family_name] = (handles, labels)
 
 for family_idx, (family_name, (handles, labels)) in enumerate(all_legends.items()):
-    axes[family_idx, 2].legend(handles, labels, loc='lower right', fontsize=10)
+    axes[family_idx, 2].legend(handles, labels, loc='lower right', fontsize=16)
 
 plt.tight_layout(h_pad=3.0)
 plt.savefig('checkpoint_pareto_curves.png', bbox_inches='tight', dpi=300)

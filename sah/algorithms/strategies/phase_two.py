@@ -52,6 +52,11 @@ class PhaseTwoStrategy(BaseStrategy):
     def configure_optimizers(self, pl_module):
         return torch.optim.AdamW(pl_module.model.parameters(), lr=self.lr)
 
+    def on_validation_start(self, pl_module):
+        for module in pl_module.model.modules():
+            if isinstance(module, ModifiedLoRA):
+                module.merge_adapter()
+
     def training_step(self, pl_module, batch, batch_idx):
         outputs = pl_module.model(**batch)
         loss = outputs.loss
@@ -85,10 +90,26 @@ class ModifiedLoRA(nn.Module):
         self.grads_B = nn.Parameter(torch.stack(diffs[f"{name}.lora_B.default.weight"])[:grads_in_memory], requires_grad=False)
 
         self.alphas = nn.Parameter(torch.ones(grads_in_memory), requires_grad=True)
+        self.merged = False
 
+    def merge_adapter(self):
+        if self.merged:
+            return
+
+        lora_A_effective = self.original_lora.lora_A.default.weight + torch.einsum('i,ijk->jk', self.alphas, self.grads_A)
+        lora_B_effective = self.original_lora.lora_B.default.weight + torch.einsum('i,ijk->jk', self.alphas, self.grads_B)
+
+        scaling = self.original_lora.scaling["default"]
+        delta = (lora_B_effective @ lora_A_effective) * scaling
+        self.original_lora.base_layer.weight.data += delta
+
+        self.merged = True
 
     def forward(self, x):
         result = self.original_lora.base_layer(x)
+
+        if self.merged:
+            return result
 
         lora_A = self.original_lora.lora_A.default.weight + torch.einsum('i,ijk->jk', self.alphas, self.grads_A)
         lora_B = self.original_lora.lora_B.default.weight + torch.einsum('i,ijk->jk', self.alphas, self.grads_B)

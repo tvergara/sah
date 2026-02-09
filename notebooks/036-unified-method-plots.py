@@ -2,25 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-olmo3_32b_bits = 32233522176 * 16
-olmo3_7b_bits = 7298011136 * 16
-smollm3_bits = 3075098624 * 16
-
-model_bits = {
-    'smollm3-stage1': smollm3_bits,
-    'olmo3-7b-step1414k': olmo3_7b_bits,
-    'olmo3-32b-step656k': olmo3_32b_bits,
-}
-
-df = pd.read_json('/network/scratch/b/brownet/hydra-runs/finetune-with-strategy/final-results-filtered.jsonl', lines=True)
-SCRIPT_SIZE = 3704
-df.loc[df['experiment_name'].isin(['urial', 'icl']), 'bits'] += SCRIPT_SIZE
-online_coding_gsm8k = df[(df['experiment_name'] == 'online_coding') &
-                         (df['dataset_name'] == 'meta-math/MetaMathQA') &
-                         (df['model_name'].isin(['smollm3-stage1', 'olmo3-7b-step1414k'])) &
-                         (df['strategy_hparams'].apply(lambda x: x.get('max_examples') is None))]
-online_coding_gsm8k = online_coding_gsm8k.sort_values(['model_name', 'bits'], ascending=[True, False])
-
+df = pd.read_json('/network/scratch/b/brownet/hydra-runs/finetune-with-strategy/final-results.jsonl', lines=True)
 model_display_names = {
     'smollm': 'SmolLM2-1.7B',
     'qwen': 'Qwen2.5-1.5B',
@@ -33,13 +15,11 @@ model_display_names = {
 dataset_display_names = {
     'meta-math/MetaMathQA': 'GSM8K',
     'allenai/nllb': 'FLORES',
-    'ifeval:/network/scratch/b/brownet/correct_ifeval_examples_extended_32_clean.jsonl': 'IFEval',
 }
 
 dataset_metric_names = {
     'meta-math/MetaMathQA': 'Accuracy',
     'allenai/nllb': 'BLEU',
-    'ifeval:/network/scratch/b/brownet/correct_ifeval_examples_extended_32_clean.jsonl': 'Score',
 }
 
 method_display_names = {
@@ -47,10 +27,11 @@ method_display_names = {
     'lora': 'LoRA',
     'adam': 'Online Coding',
     'online_coding': 'Subset Training',
-    # 'full_ft': 'Full Fine-tuning',
+    'full_ft': 'Full Fine-tuning',
     'urial': 'URIAL',
-    # 'lm_head': 'Linear Logits',
-    'blora': 'Bayesian LoRA',
+    'lm_head': 'Linear Logits',
+    'phase-one': 'Phase One',
+    'phase-two': 'Phase Two',
 }
 
 def compute_pareto_frontier(model_df, zero_bit_perf=None):
@@ -75,26 +56,31 @@ def compute_pareto_frontier(model_df, zero_bit_perf=None):
 
     return bits, performance
 
-models = ['smollm3-stage1', 'olmo3-7b-step1414k', 'olmo3-32b-step656k']
-datasets = ['meta-math/MetaMathQA', 'allenai/nllb', 'ifeval:/network/scratch/b/brownet/correct_ifeval_examples_extended_32_clean.jsonl']
+models = ['smollm3-stage1', 'olmo3-7b-step1414k']
+datasets = ['meta-math/MetaMathQA', 'allenai/nllb']
 
-model_200_params_bits = 200 * 32
+model_20_params_bits = 20 * 32
 tweet_bits = 280 * 8
 imagenet_image_bits = 224 * 224 * 3 * 8
 bert_base_bits = 110_000_000 * 32
 python_100_lines_bits = 100 * 50 * 8
 english_wikipedia_bits = 80 * 1024 * 1024 * 1024 * 8
 
-fig, axes = plt.subplots(3, 3, figsize=(24, 12))
+fig, axes = plt.subplots(2, 2, figsize=(16, 8))
 axes = axes.flatten()
 
+color_map = {}
 all_experiment_names = df['experiment_name'].unique()
-color_map = {name: plt.cm.tab10(i) for i, name in enumerate(all_experiment_names)}
+for name in all_experiment_names:
+    if name == 'phase-one':
+        color_map[name] = 'blue'
+    elif name == 'phase-two':
+        color_map[name] = 'red'
+    else:
+        color_map[name] = 'gray'
 
-method_handles = []
-method_labels = []
-reference_handles = []
-reference_labels = []
+all_handles = []
+all_labels = []
 
 for idx, (model_name, dataset_name) in enumerate([(m, d) for m in models for d in datasets]):
     ax = axes[idx]
@@ -102,20 +88,12 @@ for idx, (model_name, dataset_name) in enumerate([(m, d) for m in models for d i
     filtered_df = df[df['dataset_name'] == dataset_name]
     filtered_df = filtered_df[filtered_df['model_name'] == model_name].copy()
 
-    online_coding_df = filtered_df[filtered_df['experiment_name'] == 'online_coding']
-    online_coding_df = online_coding_df[online_coding_df['strategy_hparams'].apply(lambda x: x.get('max_examples') is None)]
-    dataset_size_bits = online_coding_df['bits'].max()
-
     zero_bits_performance = filtered_df[filtered_df['bits'] == 0]['performance'].iloc[0]
     filtered_df = filtered_df[filtered_df['bits'] > 0].copy()
-    filtered_df = filtered_df[filtered_df['experiment_name'].isin(method_display_names.keys())].copy()
-    filtered_df = filtered_df[filtered_df['performance'] >= zero_bits_performance * 0.9].copy()
 
     experiment_names = filtered_df['experiment_name'].unique()
 
     for exp_name in experiment_names:
-        if exp_name not in method_display_names:
-            continue
         exp_data = filtered_df[filtered_df['experiment_name'] == exp_name]
         exp_display = method_display_names.get(exp_name, exp_name)
         ax.scatter(exp_data['bits'], exp_data['performance'],
@@ -127,14 +105,12 @@ for idx, (model_name, dataset_name) in enumerate([(m, d) for m in models for d i
             linewidth=2, label='Pareto Frontier', color='gray')
 
     reference_lines = [
-        (model_200_params_bits, '200-param model'),
+        (model_20_params_bits, '20-param model'),
         (tweet_bits, 'Tweet'),
         (python_100_lines_bits, '100 lines Python'),
         (imagenet_image_bits, 'ImageNet image'),
         (bert_base_bits, 'BERT-base'),
-        (english_wikipedia_bits, 'English Wikipedia'),
-        (model_bits[model_name], 'Model Size'),
-        (dataset_size_bits, 'Dataset Size'),
+        (english_wikipedia_bits, 'English Wikipedia')
     ]
     reference_lines.sort(key=lambda x: x[0])
 
@@ -175,18 +151,11 @@ for idx, (model_name, dataset_name) in enumerate([(m, d) for m in models for d i
                linewidth=2, color='gray')
 
     handles, labels = ax.get_legend_handles_labels()
-    reference_line_labels = [label for _, label in reference_lines]
     for h, lbl in zip(handles, labels):
-        if lbl in reference_line_labels:
-            if lbl not in reference_labels:
-                reference_handles.append(h)
-                reference_labels.append(lbl)
-        else:
-            if lbl not in method_labels:
-                method_handles.append(h)
-                method_labels.append(lbl)
+        if lbl not in all_labels:
+            all_handles.append(h)
+            all_labels.append(lbl)
 
-legend1 = fig.legend(method_handles, method_labels, loc='upper center', bbox_to_anchor=(0.3, -0.02), ncol=4, fontsize=18, title='Methods', title_fontsize=20)
-legend2 = fig.legend(reference_handles, reference_labels, loc='upper center', bbox_to_anchor=(0.75, -0.02), ncol=4, fontsize=18, title='References', title_fontsize=20)
+fig.legend(all_handles, all_labels, loc='upper center', bbox_to_anchor=(0.5, -0.02), ncol=5, fontsize=18)
 plt.tight_layout()
-plt.savefig('pareto_curves_all.png', bbox_inches='tight', dpi=300)
+plt.savefig('pareto_curves_unified_methods.png', bbox_inches='tight', dpi=300)

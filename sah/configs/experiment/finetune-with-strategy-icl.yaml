@@ -14,4 +14,4 @@ trainer:
 algorithm:
   batch_size: 1
   experiment_name: icl
-  max_length: 3000
+  max_length: 500
