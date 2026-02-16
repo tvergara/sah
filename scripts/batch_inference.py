@@ -14,16 +14,13 @@ m.train()
 cd = gptzip.ArithmeticCoder(lm=m, tokenizer=tk)
 op = torch.optim.AdamW(m.parameters(), lr=1e-5)
 
-while True:
-    try:
-        with open(input(), "rb") as f:
-            c, n = pickle.load(f)
-        i = tk(cd.decode(c, num_padded_bits=n), return_tensors="pt")
-        op.zero_grad()
-        m(**i, labels=i["input_ids"].clone()).loss.backward()
-        op.step()
-    except EOFError:
-        break
+for line in open(sys.argv[1]):
+    with open(line.strip(), "rb") as f:
+        c, n = pickle.load(f)
+    i = tk(cd.decode(c, num_padded_bits=n), return_tensors="pt")
+    op.zero_grad()
+    m(**i, labels=i["input_ids"].clone()).loss.backward()
+    op.step()
 
 m.eval()
 print(tk.decode(m.generate(**tk(p, return_tensors="pt"), max_new_tokens=100)[0]))

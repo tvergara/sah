@@ -19,8 +19,12 @@ SCRIPT_SIZE = 3704
 df.loc[df['experiment_name'].isin(['urial', 'icl']), 'bits'] += SCRIPT_SIZE
 BASELINE_SCRIPT_SIZE = 2952
 df.loc[df['experiment_name'].isin(['baseline']), 'bits'] += BASELINE_SCRIPT_SIZE
-ONLINE_CODING_SCRIPT_SIZE = 5904
+ONLINE_CODING_SCRIPT_SIZE = 5704
 df.loc[df['experiment_name'].isin(['online_coding']), 'bits'] += ONLINE_CODING_SCRIPT_SIZE
+LORA_SCRIPT_SIZE = 2832
+df.loc[df['experiment_name'].isin(['lora']), 'bits'] += LORA_SCRIPT_SIZE
+BLORA_SCRIPT_SIZE = 8376
+df.loc[df['experiment_name'].isin(['blora']), 'bits'] += BLORA_SCRIPT_SIZE
 
 
 model_display_names = {
@@ -47,7 +51,7 @@ dataset_metric_names = {
 dataset_task_names = {
     'meta-math/MetaMathQA': 'Math',
     'allenai/nllb': 'Translation',
-    'ifeval:/network/scratch/b/brownet/correct_ifeval_examples_extended_32_clean.jsonl': 'Instructions',
+    'ifeval:/network/scratch/b/brownet/correct_ifeval_examples_extended_32_clean.jsonl': 'Instruction',
 }
 
 percentage_datasets = {'meta-math/MetaMathQA', 'ifeval:/network/scratch/b/brownet/correct_ifeval_examples_extended_32_clean.jsonl'}
@@ -111,7 +115,7 @@ color_map = {
     'baseline': '#004D40',
     'icl': '#D81B60',
     'urial': '#5E35B1',
-    'lora': '#00ACC1',
+    'lora': '#FF8A65',
     'blora': '#FFC107',
     'adam': '#FE6100',
     'online_coding': '#1E88E5',
@@ -192,8 +196,8 @@ for dataset_idx, dataset_name in enumerate(datasets):
             (python_100_lines_bits, '100 lines Python'),
             (imagenet_image_bits, 'ImageNet image'),
             (bert_base_bits, 'BERT-base'),
-            (model_bits[model_name], 'Model Size'),
-            (dataset_size_bits, 'Dataset Size'),
+            (model_bits[model_name], 'Full Model'),
+            (dataset_size_bits, 'Full Dataset'),
         ]
         if model_idx == 0 and dataset_idx == 0:
             print(reference_lines)

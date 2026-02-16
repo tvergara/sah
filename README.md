@@ -69,7 +69,7 @@ python sah/main.py experiment=finetune-with-strategy-blora algorithm/model=olmo3
 
 ## Script Sizes
 
-The script sizes in bytes reported in the paper were measured using `scripts/inference.py`, `scripts/batch_inference.py`, and `scripts/baseline_inference.py`.
+The script sizes in bytes reported in the paper were measured using `scripts/inference.py`, `scripts/batch_inference.py`, `scripts/baseline_inference.py`, `scripts/lora_inference.py`, and `scripts/blora_inference.py`.
 
 ## Plots
 

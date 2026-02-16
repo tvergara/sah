@@ -21,8 +21,12 @@ SCRIPT_SIZE = 3704
 df.loc[df['experiment_name'].isin(['urial', 'icl']), 'bits'] += SCRIPT_SIZE
 BASELINE_SCRIPT_SIZE = 2952
 df.loc[df['experiment_name'].isin(['baseline']), 'bits'] += BASELINE_SCRIPT_SIZE
-ONLINE_CODING_SCRIPT_SIZE = 5904
+ONLINE_CODING_SCRIPT_SIZE = 5704
 df.loc[df['experiment_name'].isin(['online_coding']), 'bits'] += ONLINE_CODING_SCRIPT_SIZE
+LORA_SCRIPT_SIZE = 2832
+df.loc[df['experiment_name'].isin(['lora']), 'bits'] += LORA_SCRIPT_SIZE
+BLORA_SCRIPT_SIZE = 8376
+df.loc[df['experiment_name'].isin(['blora']), 'bits'] += BLORA_SCRIPT_SIZE
 
 
 model_display_names = {
@@ -49,9 +53,9 @@ model_display_names = {
 }
 
 dataset_display_names = {
-    'meta-math/MetaMathQA': 'GSM8K',
-    'allenai/nllb': 'FLORES',
-    'ifeval:/network/scratch/b/brownet/correct_ifeval_examples_extended_32_clean.jsonl': 'IFEval',
+    'meta-math/MetaMathQA': 'Math',
+    'allenai/nllb': 'Translation',
+    'ifeval:/network/scratch/b/brownet/correct_ifeval_examples_extended_32_clean.jsonl': 'Instruction',
 }
 
 dataset_metric_names = {
@@ -144,7 +148,7 @@ for dataset_idx, dataset_name in enumerate(datasets):
         metric_name = dataset_metric_names.get(dataset_name, r'$\delta$')
         dataset_display = dataset_display_names.get(dataset_name, dataset_name)
         if dataset_idx == len(datasets) - 1:
-            ax.set_xlabel(f'Task Complexity\nconditioned on {family_name}', fontsize=18)
+            ax.set_xlabel('Program Length (bits)', fontsize=18)
         if family_idx == 0:
             ax.set_ylabel(f'{dataset_display}\n{metric_name}', fontsize=18)
         if dataset_idx == 0:
@@ -268,7 +272,7 @@ for dataset_idx, dataset_name in enumerate(datasets_no_flores):
         metric_name = dataset_metric_names.get(dataset_name, r'$\delta$')
         dataset_display = dataset_display_names.get(dataset_name, dataset_name)
         if dataset_idx == len(datasets_no_flores) - 1:
-            ax.set_xlabel(f'Task Complexity\nconditioned on {family_name}', fontsize=18)
+            ax.set_xlabel('Program Length (bits)', fontsize=18)
         if family_idx == 0:
             ax.set_ylabel(f'{dataset_display}\n{metric_name}', fontsize=18)
         if dataset_idx == 0:
@@ -354,7 +358,7 @@ for dataset_idx, dataset_name in enumerate(datasets_flores_only):
 
         metric_name = dataset_metric_names.get(dataset_name, r'$\delta$')
         dataset_display = dataset_display_names.get(dataset_name, dataset_name)
-        ax.set_xlabel(f'Task Complexity\nconditioned on {family_name}', fontsize=18)
+        ax.set_xlabel('Program Length (bits)', fontsize=18)
         if family_idx == 0:
             ax.set_ylabel(f'{dataset_display}\n{metric_name}', fontsize=18)
         ax.set_title(family_name, fontsize=20, pad=15)
