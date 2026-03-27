@@ -4,7 +4,6 @@ algorithm:
   model_name: smollm3-step1720k
   tokenizer_config:
     pretrained_model_name_or_path: HuggingFaceTB/SmolLM3-3B
-    revision: null
   model_config:
     pretrained_model_name_or_path: HuggingFaceTB/SmolLM3-3B-checkpoints
     revision: stage1-step-1720000
