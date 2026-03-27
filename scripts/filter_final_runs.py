@@ -8,6 +8,7 @@ DATASET_MAPPING = {
     'metamath': 'meta-math/MetaMathQA',
     'flores': 'allenai/nllb',
     'ifeval': 'ifeval:/network/scratch/b/brownet/correct_ifeval_examples_extended_32_clean.jsonl',
+    'esnli': 'esnli',
 }
 
 SEEDS = [1]
@@ -43,6 +44,15 @@ checkpoint_models = [
     'olmo3-7b-instruct-step400'
 ]
 CHECKPOINT_MAX_EXAMPLES = [1024, 2048, 4096, 8192, 16384, 32768]
+
+esnli_checkpoint_models = [
+    'smollm3-step0',
+    'smollm3',
+    'smollm3-stage3',
+    'olmo3-7b-step0',
+    'olmo3-1025-7b',
+    'olmo3-7b-instruct-step400',
+]
 
 for model in models:
     for dataset in datasets_short:
@@ -217,6 +227,49 @@ for model in checkpoint_models:
             'lr': None,
             'expected_count': 1,
         })
+
+for model in esnli_checkpoint_models:
+    dataset_full = DATASET_MAPPING['esnli']
+
+    for seed in SEEDS:
+        for lr in LR_ONLINE_CODING:
+            expected_jobs.append({
+                'model': model,
+                'dataset': dataset_full,
+                'strategy': 'online_coding',
+                'seed': seed,
+                'lr': lr,
+                'checkpoint_model': True,
+                'expected_count': len(CHECKPOINT_MAX_EXAMPLES) * 3,
+            })
+
+    for seed in SEEDS:
+        expected_jobs.append({
+            'model': model,
+            'dataset': dataset_full,
+            'strategy': 'icl',
+            'seed': seed,
+            'lr': None,
+            'expected_count': 1,
+        })
+
+    expected_jobs.append({
+        'model': model,
+        'dataset': dataset_full,
+        'strategy': 'urial',
+        'seed': 1,
+        'lr': None,
+        'expected_count': 1,
+    })
+
+    expected_jobs.append({
+        'model': model,
+        'dataset': dataset_full,
+        'strategy': 'baseline',
+        'seed': 1,
+        'lr': None,
+        'expected_count': 1,
+    })
 
 print(f"Total expected job configurations: {len(expected_jobs)}")
 print(f"Total results in jsonl: {len(df)}")
