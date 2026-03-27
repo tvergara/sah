@@ -496,6 +496,14 @@ for expected in expected_jobs:
                 if total_samples not in seen_total_samples:
                     seen_total_samples.add(total_samples)
                     filtered_indices.add(idx)
+        elif expected.get('checkpoint_model') and expected['strategy'] == 'online_coding':
+            seen_configs = set()
+            for idx in reversed(matching.index):
+                hparams = matching.loc[idx, 'strategy_hparams']
+                config_key = (hparams.get('max_examples'), hparams.get('current_epoch'))
+                if config_key not in seen_configs:
+                    seen_configs.add(config_key)
+                    filtered_indices.add(idx)
         else:
             last_idx = matching.index[-1]
             filtered_indices.add(last_idx)
