@@ -1,3 +1,4 @@
+import os
 import re
 
 import torch
@@ -7,12 +8,12 @@ from tqdm import tqdm
 
 from .base import BaseDatasetHandler, GenerationValDataset
 
-DATA_DIR = "/network/scratch/b/brownet/data/esnli"
+DATA_DIR = os.path.join(os.environ.get("SCRATCH", "/network/scratch/b/brownet"), "data", "esnli")
 TRAIN_FILES = [
-    f"{DATA_DIR}/esnli_train_1.csv",
-    f"{DATA_DIR}/esnli_train_2.csv",
+    os.path.join(DATA_DIR, "esnli_train_1.csv"),
+    os.path.join(DATA_DIR, "esnli_train_2.csv"),
 ]
-TEST_FILE = f"{DATA_DIR}/esnli_test.csv"
+TEST_FILE = os.path.join(DATA_DIR, "esnli_test.csv")
 
 LABEL_MAP = {
     "entailment": "entailment",
