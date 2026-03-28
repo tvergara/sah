@@ -47,7 +47,7 @@ CHECKPOINT_MAX_EXAMPLES = [1024, 2048, 4096, 8192, 16384, 32768]
 
 esnli_checkpoint_models = [
     'smollm3-step0',
-    'smollm3',
+    'smollm3-stage1',
     'smollm3-stage3',
     'olmo3-7b-step0',
     'olmo3-1025-7b',
