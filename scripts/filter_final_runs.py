@@ -50,7 +50,7 @@ esnli_checkpoint_models = [
     'smollm3-stage1',
     'smollm3',
     'olmo3-7b-step0',
-    'olmo3-1025-7b',
+    'olmo3-7b-step1414k',
     'olmo3-7b-instruct-step400',
 ]
 
