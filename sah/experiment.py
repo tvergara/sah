@@ -181,6 +181,10 @@ def evaluate_lightning(
         metric_name = "1-accuracy"
         error = 1 - accuracy
 
+    elif (performance := metrics.get(f"{results_type}/performance")) is not None:
+        metric_name = "1-accuracy"
+        error = 1 - performance
+
     elif (loss := metrics.get(f"{results_type}/loss")) is not None:
         logger.info("Assuming that the objective to minimize is the loss metric.")
         # If 'accuracy' isn't in the results, assume that the loss is the metric to use.
