@@ -136,7 +136,8 @@ class ESNLIHandler(BaseDatasetHandler):
                 answers.append(item["gold_label"])
 
             self.validation_data = [
-                {"question": q, "expected_answer": a} for q, a in zip(prompts, answers)
+                {"question": f"<|im_start|>user\n{q}\n<|im_start|>assistant\n", "expected_answer": a}
+                for q, a in zip(prompts, answers)
             ]
 
         return self.validation_data
@@ -161,8 +162,10 @@ class ESNLIHandler(BaseDatasetHandler):
         for i, gen_tokens in enumerate(generated):
             decoded = self.tokenizer.decode(gen_tokens[decoding_starts:], skip_special_tokens=True)
 
-            pattern = r"the answer is (\w+)"
+            pattern = r"(?:the answer|the relationship) is (\w+)"
             match = re.search(pattern, decoded, re.IGNORECASE)
+            if not match:
+                match = re.search(r"\b(entailment|neutral|contradiction)\b", decoded, re.IGNORECASE)
             extracted_answer = match.group(1).lower().rstrip(".") if match else ""
 
             expected_answer = batch["expected_answer"][i]

@@ -63,24 +63,21 @@ Your entire response should be in English, capital letters only. Which country h
 CHINA
 """,
 }
-DATASET_PROMPTS["esnli"] = """# System
-You are a helpful, respectful and honest assistant.
+DATASET_PROMPTS["esnli"] = """<|im_start|>system
+You are a helpful, respectful and honest assistant. Given a premise and a hypothesis, explain your reasoning and then classify the relationship as entailment, neutral, or contradiction.
 
-# Instruction
-Given a premise and a hypothesis, explain your reasoning and then classify the relationship as entailment, neutral, or contradiction.
-
+<|im_start|>user
 Premise: A person on a horse jumps over a broken down airplane.
 Hypothesis: A person is outdoors, on a horse.
 Does the premise entail, contradict, or is neutral to the hypothesis? Explain your reasoning, then answer.
-
- A broken down airplane is outdoors, and the person is on a horse jumping over it. Therefore, the answer is entailment.
-
+<|im_start|>assistant
+A broken down airplane is outdoors, and the person is on a horse jumping over it. Therefore, the answer is entailment.
+<|im_start|>user
 Premise: Children smiling and waving at camera
 Hypothesis: The kids are frowning
 Does the premise entail, contradict, or is neutral to the hypothesis? Explain your reasoning, then answer.
-
- One cannot be smiling and frowning at the same time. Therefore, the answer is contradiction.
-
+<|im_start|>assistant
+One cannot be smiling and frowning at the same time. Therefore, the answer is contradiction.
 """
 DATASET_PROMPTS[f"ifeval:{SCRATCH_DIR}/correct_ifeval_examples_extended_32.jsonl"] = DATASET_PROMPTS[f"ifeval:{SCRATCH_DIR}/correct_ifeval_examples.jsonl"]
 DATASET_PROMPTS[f"ifeval:{SCRATCH_DIR}/correct_ifeval_examples_extended_32_clean.jsonl"] = DATASET_PROMPTS[f"ifeval:{SCRATCH_DIR}/correct_ifeval_examples.jsonl"]
