@@ -128,8 +128,6 @@ TIMEOUT=84600
 timeout $TIMEOUT parallel \
   --jobs 4 \
   --joblog $LOG_FILE \
-  --resume \
-  --resume-failed \
   --line-buffer \
   --will-cite \
   'CUDA_VISIBLE_DEVICES=$((({%} - 1))) bash slurm/run-single-job.sh {}' \
